@@ -79,14 +79,14 @@ export default function Scanner() {
             
             return (
               <div 
-                key={`${res.symbol}-${i}`} 
+                key={`${res.tradingsymbol}-${i}`} 
                 className={`terminal-panel p-5 group flex flex-col hover:-translate-y-1 transition-all duration-300 ${
                   isHighConviction ? 'border-primary/40 shadow-[0_0_15px_rgba(59,130,246,0.1)]' : ''
                 }`}
               >
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h3 className="text-xl font-bold font-mono text-foreground tracking-tight">{res.symbol}</h3>
+                    <h3 className="text-xl font-bold font-mono text-foreground tracking-tight">{res.tradingsymbol}</h3>
                     <div className="text-xs text-muted-foreground mt-0.5">{res.strategy}</div>
                   </div>
                   
@@ -134,7 +134,7 @@ export default function Scanner() {
                   )}
                   
                   <Link 
-                    href={`/debug?symbol=${res.symbol}`}
+                    href={`/debug?symbol=${res.tradingsymbol}`}
                     className="text-xs font-mono flex items-center text-muted-foreground group-hover:text-foreground transition-colors"
                   >
                     DEBUG <ArrowRight className="w-3 h-3 ml-1" />

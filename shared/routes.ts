@@ -1,5 +1,13 @@
 import { z } from 'zod';
-import { signalSchema, rankedSignalSchema, scanResultSchema, debugRowSchema, debugSummarySchema } from './schema';
+import {
+  debugRowSchema,
+  debugSummarySchema,
+  rankedSignalSchema,
+  runEngineResponseSchema,
+  scanResponseSchema,
+  signalSchema,
+  universeResponseSchema,
+} from './schema';
 
 export const errorSchemas = {
   validation: z.object({ message: z.string(), field: z.string().optional() }),
@@ -22,7 +30,7 @@ export const api = {
       method: 'GET' as const,
       path: '/run' as const,
       responses: {
-        200: z.object({ message: z.string() }).passthrough(),
+        200: runEngineResponseSchema,
       },
     },
   },
@@ -47,7 +55,7 @@ export const api = {
       method: 'GET' as const,
       path: '/universe' as const,
       responses: {
-        200: z.array(z.string()),
+        200: universeResponseSchema,
       },
     },
   },
@@ -75,7 +83,7 @@ export const api = {
         top_n: z.string().optional()
       }).optional(),
       responses: {
-        200: z.array(scanResultSchema),
+        200: scanResponseSchema,
       },
     }
   }

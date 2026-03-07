@@ -1,7 +1,9 @@
+import { QueryClient } from "@tanstack/react-query";
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
-    throw new Error(${res.status}: ${text});
+    throw new Error(`${res.status}: ${text}`);
   }
 }
 
@@ -10,11 +12,10 @@ type UnauthorizedBehavior = "returnNull" | "throw";
 export async function apiRequest(
   url: string,
   options: RequestInit = {},
-  unauthorizedBehavior: UnauthorizedBehavior = "throw"
+  unauthorizedBehavior: UnauthorizedBehavior = "throw",
 ) {
-  if (!url.startsWith("/")) url = "/" + url;
-
-  const fullUrl = http://127.0.0.1:8000${url};
+  const normalizedUrl = url.startsWith("/") ? url : `/${url}`;
+  const fullUrl = `/api${normalizedUrl}`;
 
   const res = await fetch(fullUrl, {
     ...options,
@@ -30,10 +31,18 @@ export async function apiRequest(
   }
 
   await throwIfResNotOk(res);
-  return await res.json();
+  return res.json();
 }
 
-export const queryClient = {
-  getQueryData: () => undefined,
-  setQueryData: () => undefined,
-};
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 30_000,
+    },
+    mutations: {
+      retry: 0,
+    },
+  },
+});
