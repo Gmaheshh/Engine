@@ -1,0 +1,189 @@
+Build a polished frontend for my trading platform PRA-GATI.
+
+Context:
+I already have a Python FastAPI backend running locally.
+This frontend should be ONLY for the UI layer.
+Do not rebuild the backend.
+Do not use mock data unless an endpoint fails.
+Use real API calls.
+
+Backend base URL:
+http://127.0.0.1:8000
+
+Backend endpoints already available:
+GET /health
+GET /run
+GET /signals
+GET /signals/ranked
+GET /universe
+GET /debug/{symbol}
+GET /debug/{symbol}/summary
+GET /scan?top_n=10
+
+Goal:
+Create a Bloomberg-style / professional trading-terminal style dashboard for PRA-GATI.
+
+Tech stack:
+- React
+- Vite
+- Tailwind CSS
+- Use fetch() or axios for API calls
+- Clean component-based architecture
+- No backend code generation
+- No authentication for now
+- No database work
+- Focus only on frontend
+
+Design style:
+- Dark trading terminal theme
+- Elegant and premium, like a modern quant dashboard
+- Use cards, data tables, status badges, tabs, and small summary widgets
+- Responsive layout
+- Minimal but professional
+- Accent colors:
+  - green for bullish / positive / active signals
+  - red for risk / bearish / errors
+  - amber/yellow for warnings / neutral
+- Avoid overly flashy animations
+
+Pages / Sections required:
+
+1. DASHBOARD HOME
+- Top KPI cards:
+  - Health status
+  - Universe count
+  - Total signals
+  - Ranked signals count
+- Quick action buttons:
+  - Run Engine
+  - Refresh Signals
+  - Refresh Ranked Signals
+- Show latest top 5 ranked signals in a compact table
+- Show backend health status badge
+
+2. LIVE SIGNALS PAGE
+- Fetch from /signals
+- Table columns should include when available:
+  - ts
+  - tradingsymbol
+  - strategy
+  - close
+  - ema_fast
+  - ema_slow
+  - adx
+  - atr
+  - rsi
+  - signal
+- Search by symbol
+- Filter by strategy
+- Refresh button
+- Export CSV button on frontend if easy
+
+3. RANKED SIGNALS PAGE
+- Fetch from /signals/ranked
+- Display ranked signal table
+- Highlight top 10
+- Show score prominently
+- Sort descending by score
+- Search and filter
+
+4. MARKET SCANNER PAGE
+- Fetch from /scan?top_n=20
+- Show actionable signals in card + table format
+- Include:
+  - symbol
+  - strategy
+  - score
+  - close
+  - adx
+  - atr
+  - rsi
+- Add “View Debug” button for each symbol
+
+5. SYMBOL DEBUG PAGE
+- Input box for symbol
+- Call:
+  - /debug/{symbol}
+  - /debug/{symbol}/summary
+- Show:
+  - summary card with latest signal explanation
+  - last 10 rows in a table
+  - fields like:
+    - ts
+    - close
+    - ema_fast
+    - ema_slow
+    - adx
+    - atr
+    - rsi
+    - signal
+    - vb_signal
+    - median_42
+- Make this page very readable for strategy diagnosis
+
+6. UNIVERSE PAGE
+- Fetch from /universe
+- Show count and full symbol list
+- Search/filter input
+- Maybe grid chips or table
+
+Required components:
+- Header / top nav
+- Sidebar navigation
+- StatusBadge component
+- StatCard component
+- SignalsTable component
+- RankedTable component
+- DebugPanel component
+- LoadingSpinner
+- ErrorBanner
+- EmptyState
+
+Project structure:
+src/
+  App.jsx
+  main.jsx
+  components/
+    Header.jsx
+    Sidebar.jsx
+    StatCard.jsx
+    StatusBadge.jsx
+    LoadingSpinner.jsx
+    ErrorBanner.jsx
+    SignalsTable.jsx
+    RankedTable.jsx
+    DebugPanel.jsx
+  pages/
+    DashboardPage.jsx
+    SignalsPage.jsx
+    RankedPage.jsx
+    ScannerPage.jsx
+    DebugPage.jsx
+    UniversePage.jsx
+  services/
+    api.js
+  utils/
+    formatters.js
+
+Implementation details:
+- Add a single API service file with all endpoint calls
+- Handle loading, empty, and error states properly
+- Do not crash if some columns are missing from the API response
+- Render only available columns
+- Add auto-refresh every 60 seconds on dashboard and scanner pages
+- Add manual refresh buttons too
+- Keep code clean and production-like
+
+Important:
+- Since backend is local, keep API base URL configurable in one place
+- Do not invent endpoints
+- Use only the endpoints listed above
+- Do not create fake brokerage or trading logic on frontend
+- Frontend should be ready to plug into my existing PRA-GATI backend immediately
+
+Deliverables:
+- Full React frontend code
+- Tailwind styling
+- Clear file structure
+- Run instructions
+- Make it look like a real trading terminal
