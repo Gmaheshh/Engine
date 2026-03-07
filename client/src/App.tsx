@@ -5,12 +5,22 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 
+import Dashboard from "@/pages/dashboard";
+import Signals from "@/pages/signals";
+import RankedSignals from "@/pages/ranked";
+import Scanner from "@/pages/scanner";
+import DebugTool from "@/pages/debug";
+import Universe from "@/pages/universe";
+
 function Router() {
   return (
     <Switch>
-      {/* Add pages below */}
-      {/* <Route path="/" component={Home}/> */}
-      {/* Fallback to 404 */}
+      <Route path="/" component={Dashboard} />
+      <Route path="/signals" component={Signals} />
+      <Route path="/signals/ranked" component={RankedSignals} />
+      <Route path="/scan" component={Scanner} />
+      <Route path="/debug" component={DebugTool} />
+      <Route path="/universe" component={Universe} />
       <Route component={NotFound} />
     </Switch>
   );

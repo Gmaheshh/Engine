@@ -12,11 +12,12 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const res = await fetch(url, {
+  const fullUrl = url.startsWith("http") ? url : `http://127.0.0.1:8000${url.startsWith("/") ? "" : "/"}${url}`;
+  const res = await fetch(fullUrl, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
+    credentials: "omit", // Using omit for cross-origin local requests unless CORS is configured for credentials
   });
 
   await throwIfResNotOk(res);
@@ -29,8 +30,12 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
-      credentials: "include",
+    let url = queryKey.join("/") as string;
+    if (!url.startsWith("/")) url = "/" + url;
+    const fullUrl = `http://127.0.0.1:8000${url}`;
+    
+    const res = await fetch(fullUrl, {
+      credentials: "omit",
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
