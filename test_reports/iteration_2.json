@@ -1,0 +1,51 @@
+{
+  "summary": "Completed comprehensive testing of PRA-GATI trading app. All backend APIs working perfectly (17/17 tests passed). Frontend navigation and core functionality working correctly. Minor UI state issues with scanner button during loading state.",
+  "backend_issues": {
+    "critical_bugs": [],
+    "flaky_endpoints": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Scanner page RUN_SCAN button",
+        "issue": "Button becomes disabled during scanning operation and may remain in 'SCANNING...' state",
+        "selector": "[data-testid='run-scan-btn']",
+        "fix_priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "Backend health endpoint returns status 'ok' with data_provider and demo_mode",
+    "Backend universe endpoint returns 206 symbols correctly",
+    "Backend signals endpoint returns proper signal data with indicator values",
+    "Backend ranked signals endpoint returns ranked signals with scores",
+    "Backend debug status endpoint returns engine status and route health",
+    "Backend debug RELIANCE endpoint returns indicator data correctly",
+    "Backend debug RELIANCE summary endpoint returns analysis summary",
+    "Backend config endpoint returns configuration without secrets",
+    "Backend run endpoint triggers signal engine execution successfully",
+    "Backend scan endpoint returns scan results with proper structure",
+    "Frontend Dashboard page loads with stats cards and PRA-GATI branding",
+    "Frontend Live Signals page shows signal table with search and filter functionality",
+    "Frontend Ranked page shows ranked opportunities with proper messaging",
+    "Frontend Charts page displays symbol data with EMA, RSI, ADX values",
+    "Frontend Universe page shows 206 symbols with search functionality",
+    "Frontend Debug Tool page works with ANALYZE button for RELIANCE symbol",
+    "Frontend Settings page shows configuration details",
+    "Navigation between all 8 pages works correctly",
+    "Engine status indicator shows ONLINE status",
+    "RUN_ENGINE functionality from sidebar and dashboard works",
+    "All search and filter functionalities work properly"
+  ],
+  "test_report_links": ["/app/backend_test.py", "/app/backend_test_results.json"],
+  "action_item_for_main_agent": "",
+  "updated_files": [],
+  "success_percentage": {
+    "backend": "100%",
+    "frontend": "98%"
+  },
+  "should_call_test_agent_after_fix": "false",
+  "should_main_agent_test_itself": "true"
+}
