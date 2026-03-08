@@ -37,6 +37,12 @@ class QuantTradingAPITester:
         """Run a single API test"""
         url = f"{self.base_url}{endpoint}"
         
+        # Handle multiple expected status codes
+        if isinstance(expected_status, list):
+            expected_statuses = expected_status
+        else:
+            expected_statuses = [expected_status]
+        
         try:
             if method == 'GET':
                 response = requests.get(url, timeout=30)
@@ -46,7 +52,7 @@ class QuantTradingAPITester:
                 self.log_test(name, False, f"Unsupported method: {method}")
                 return False, {}
 
-            success = response.status_code == expected_status
+            success = response.status_code in expected_statuses
             
             if success:
                 try:
@@ -66,7 +72,7 @@ class QuantTradingAPITester:
                     self.log_test(name, False, f"Status: {response.status_code}, Invalid JSON response")
                     return False, {}
             else:
-                self.log_test(name, False, f"Expected {expected_status}, got {response.status_code}")
+                self.log_test(name, False, f"Expected {expected_statuses}, got {response.status_code}")
                 return False, {}
 
         except requests.exceptions.Timeout:
