@@ -1,83 +1,102 @@
-# PRA-GATI / Quant Trading Dashboard - PRD
+# PRA-GATI Trading Platform - Product Requirements Document
 
 ## Original Problem Statement
-Repair and complete a broken full-stack quant trading application (PRA-GATI/Engine) with:
-- React + TypeScript/Vite frontend
-- Express backend proxy
-- Python FastAPI backend
-- Goal: Make dashboard, signals, ranked signals, scanner, universe, and debug pages work end-to-end
-
-## Architecture
-
-### Stack
-- **Frontend**: React (CRA) on port 3000
-- **Backend**: FastAPI Python on port 8001
-- **Database**: N/A (uses CSV file storage for signals)
-- **Data Source**: Sample data (Zerodha API fallback)
-
-### Key Files
-- `/app/backend/server.py` - Main FastAPI application with /api/* routes
-- `/app/backend/engine/signal_runner.py` - Signal generation engine
-- `/app/backend/data/universe.py` - 206 NSE trading symbols
-- `/app/frontend/src/App.js` - Single-file React frontend
-
-### API Endpoints
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| /api/health | GET | Health check |
-| /api/universe | GET | Returns 206 trading symbols |
-| /api/signals | GET | Raw signals from strategies |
-| /api/signals/ranked | GET | Signals with ensemble scores |
-| /api/scan | GET | Market scanner (top_n param) |
-| /api/run | GET | Trigger engine run |
-| /api/debug/{symbol} | GET | Symbol debug rows |
-| /api/debug/{symbol}/summary | GET | Symbol analysis summary |
+Transform GitHub repository (https://github.com/Gmaheshh/Engine) into a stable PRA-GATI trading app with:
+- Real market data flow
+- Real technical indicator calculations
+- Deterministic buy/sell/hold signal generation
+- Signal rankings with debug visibility
+- Watchlist/scanner workflow
+- Charts and market overview
+- Clean frontend-backend architecture
+- Zerodha-ready architecture
 
 ## User Personas
-- **Quant Traders**: View market signals, scan for opportunities
-- **Technical Analysts**: Debug strategy logic per symbol
-- **Portfolio Managers**: Review ranked opportunities
+1. **Active Trader**: Needs real-time signals, quick scan capabilities, and clear entry/exit points
+2. **Technical Analyst**: Requires indicator visibility, debug tools, and strategy understanding
+3. **Portfolio Manager**: Monitors universe, tracks ranked opportunities, reviews system health
 
 ## Core Requirements (Static)
-1. ✅ Dashboard with system overview, stats, and top signals
-2. ✅ Live Signals page with filtering and export
-3. ✅ Ranked Signals page sorted by conviction score
-4. ✅ Market Scanner with configurable top_n
-5. ✅ Universe page showing all 206 monitored symbols
-6. ✅ Debug Tool for per-symbol strategy analysis
-7. ✅ Backend health monitoring
-8. ✅ Sample data fallback when Zerodha API unavailable
+1. Real indicator-based signal generation (EMA, RSI, ADX, ATR, MACD)
+2. Two strategies: VWLM and Volatility Breakout
+3. Signal ranking with scoring
+4. Debug visibility for why signals triggered
+5. 206 symbol universe (Nifty-related stocks)
+6. Environment-based credential management
+7. Demo mode for development/testing
 
-## What's Been Implemented
-| Date | Feature | Status |
-|------|---------|--------|
-| 2026-03-08 | Fixed backend with sample data fallback | ✅ Complete |
-| 2026-03-08 | Created standalone React frontend | ✅ Complete |
-| 2026-03-08 | All 6 pages working (Dashboard, Signals, Ranked, Scanner, Universe, Debug) | ✅ Complete |
-| 2026-03-08 | Signal generation with VWLM and Volatility Breakout strategies | ✅ Complete |
+## What's Been Implemented (March 8, 2026)
+
+### Backend (Python FastAPI - Port 8001)
+- `/api/health` - Health check with status, data provider, demo mode
+- `/api/universe` - Returns 206 symbols
+- `/api/signals` - Raw signals with indicators
+- `/api/signals/ranked` - Ranked signals with scores
+- `/api/run` - Trigger signal engine
+- `/api/scan` - Market scanner with top_n parameter
+- `/api/debug/{symbol}` - Debug indicator data
+- `/api/debug/{symbol}/summary` - Analysis summary with reasons
+- `/api/debug/status` - Engine status and route health
+- `/api/config` - Configuration without secrets
+
+### Frontend (React - Port 3000)
+- Dashboard - System overview with stats cards, top ranked, system log
+- Live Signals - Signal table with search/filter
+- Ranked - Sorted opportunities by score
+- Scanner - Cross-sectional analysis cards
+- Charts - Symbol data with EMA trend, RSI status
+- Universe - 206 symbols with filter
+- Debug Tool - Deep dive into signal logic
+- Settings - Configuration visibility
+
+### Signal Logic
+- **VWLM Strategy**: EMA crossover + RSI + ADX + Volume confirmation
+- **Volatility Breakout**: Price breakout + Trend strength + Compression detection
+- **Ranking**: Score = ADX*0.4 + RSI*0.2 + EMA_diff*0.4
+
+### Data Integration
+- Zerodha Kite Connect configured via environment variables
+- Sample data fallback for development
+- DEMO_MODE flag for testing
 
 ## Prioritized Backlog
 
-### P0 (Critical)
-- None remaining
+### P0 (Critical) - DONE
+- [x] Core signal generation
+- [x] Backend API endpoints
+- [x] Frontend pages
+- [x] Zerodha credential management
+- [x] Debug visibility
 
-### P1 (Important)
-- Real Zerodha API integration when valid credentials available
-- More symbols generating signals (currently limited to 20-30 for speed)
+### P1 (High Priority) - Future
+- [ ] Real Zerodha historical data integration (access token refresh)
+- [ ] Backtest module implementation
+- [ ] CSV export for signals
+- [ ] Watchlist persistence
 
-### P2 (Nice to have)
-- CSV export functionality on Signals page
-- Historical signal performance tracking
-- WebSocket real-time updates
-- Authentication/authorization
+### P2 (Medium Priority) - Future
+- [ ] Real-time WebSocket streaming
+- [ ] Alert notifications
+- [ ] User authentication
+- [ ] Portfolio tracking
+- [ ] Order execution module
 
 ## Next Tasks
-1. Configure valid Zerodha API credentials for real market data
-2. Increase symbol batch size for engine runs
-3. Add data persistence/caching layer
-4. Implement CSV export feature
+1. Implement Zerodha access token refresh flow
+2. Add backtest module with historical performance
+3. Implement watchlist persistence with MongoDB
+4. Add CSV export functionality
+5. Build sector grouping views
 
-## Notes
-- Sample data uses deterministic random generation based on symbol hash
-- Engine currently processes 20 symbols for faster response (configurable)
-- All boolean signals converted to integers (0/1) for frontend compatibility
+## Technical Stack
+- Backend: Python, FastAPI, pandas, numpy, kiteconnect
+- Frontend: React 18, Tailwind CSS
+- Database: MongoDB (configured but not yet used)
+- Data: Zerodha Kite Connect API
+
+## Environment Variables
+- `ZERODHA_API_KEY` - Kite Connect API key
+- `ZERODHA_API_SECRET` - Kite Connect API secret
+- `ZERODHA_ACCESS_TOKEN` - Daily access token
+- `DEMO_MODE` - true/false for sample data
+- `DATA_PROVIDER` - zerodha/sample
