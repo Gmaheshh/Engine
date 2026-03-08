@@ -1,50 +1,67 @@
-import { useState } from "react";
-import { useScan } from "@/hooks/use-trading";
-import { LayoutShell } from "@/components/layout-shell";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { useMemo, useState } from "react";
 import { Link } from "wouter";
-import { Crosshair, BugPlay, ArrowRight, TrendingUp } from "lucide-react";
-import { StatusBadge } from "@/components/status-badge";
+import { ArrowRight, Crosshair, TrendingUp } from "lucide-react";
+
+import { LayoutShell } from "@/components/layout-shell";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useScan } from "@/hooks/use-trading";
+
+function toNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function formatNumber(value: unknown, digits = 2): string {
+  const num = toNumber(value);
+  return num === null ? "-" : num.toFixed(digits);
+}
 
 export default function Scanner() {
   const [topN, setTopN] = useState("20");
   const [queryVal, setQueryVal] = useState("20");
-  
-  const { data: scanResults, isLoading, refetch } = useScan(queryVal);
+
+  const { data: scanResults = [], isLoading } = useScan(queryVal);
+
+  const normalizedTopN = useMemo(() => {
+    const parsed = Number.parseInt(topN, 10);
+    if (!Number.isFinite(parsed) || parsed < 1) return "20";
+    return String(parsed);
+  }, [topN]);
 
   const handleScan = () => {
-    setQueryVal(topN);
-    refetch();
+    setQueryVal(normalizedTopN);
   };
 
   return (
     <LayoutShell>
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-6 animate-slide-in">
+      <div className="mb-6 flex animate-slide-in flex-col items-start justify-between gap-4 md:flex-row md:items-end">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <Crosshair className="w-6 h-6 text-primary" />
+          <h2 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground">
+            <Crosshair className="h-6 w-6 text-primary" />
             Market Scanner
           </h2>
-          <p className="text-muted-foreground font-mono text-sm mt-1">Cross-sectional analysis across universe</p>
+          <p className="mt-1 font-mono text-sm text-muted-foreground">
+            Cross-sectional analysis across universe
+          </p>
         </div>
-        
+
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-sm font-mono text-muted-foreground">
+          <div className="flex items-center gap-2 font-mono text-sm text-muted-foreground">
             <span>TOP_N:</span>
-            <Input 
-              type="number" 
+            <Input
+              type="number"
               value={topN}
               onChange={(e) => setTopN(e.target.value)}
-              className="w-20 h-9 bg-card border-border/50 text-center"
+              className="h-9 w-20 border-border/50 bg-card text-center"
               min="1"
+              step="1"
             />
           </div>
-          
-          <Button 
+
+          <Button
             onClick={handleScan}
             disabled={isLoading}
-            className="font-mono text-xs h-9"
+            className="h-9 font-mono text-xs"
           >
             {isLoading ? "SCANNING..." : "RUN_SCAN"}
           </Button>
@@ -52,92 +69,141 @@ export default function Scanner() {
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-slide-in stagger-2">
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="terminal-panel h-48 p-5 opacity-50 flex flex-col justify-between">
+        <div className="grid animate-slide-in stagger-2 grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div
+              key={i}
+              className="terminal-panel flex h-48 flex-col justify-between p-5 opacity-50"
+            >
               <div className="flex justify-between">
-                <div className="h-6 w-20 bg-white/10 animate-pulse rounded"></div>
-                <div className="h-6 w-12 bg-white/10 animate-pulse rounded"></div>
+                <div className="h-6 w-20 animate-pulse rounded bg-white/10" />
+                <div className="h-6 w-12 animate-pulse rounded bg-white/10" />
               </div>
-              <div className="space-y-3 mt-auto">
-                <div className="h-4 w-full bg-white/5 animate-pulse rounded"></div>
-                <div className="h-4 w-3/4 bg-white/5 animate-pulse rounded"></div>
+
+              <div className="mt-auto space-y-3">
+                <div className="h-4 w-full animate-pulse rounded bg-white/5" />
+                <div className="h-4 w-3/4 animate-pulse rounded bg-white/5" />
               </div>
             </div>
           ))}
         </div>
-      ) : scanResults?.length === 0 ? (
-        <div className="terminal-panel p-12 text-center border-dashed animate-slide-in stagger-2">
-          <Crosshair className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-          <div className="text-muted-foreground font-mono mb-2">NO_RESULTS_FOUND</div>
-          <p className="text-sm text-muted-foreground/60">Try adjusting parameters or expanding universe.</p>
+      ) : scanResults.length === 0 ? (
+        <div className="terminal-panel animate-slide-in stagger-2 border-dashed p-12 text-center">
+          <Crosshair className="mx-auto mb-4 h-12 w-12 text-muted-foreground/30" />
+          <div className="mb-2 font-mono text-muted-foreground">
+            NO_RESULTS_FOUND
+          </div>
+          <p className="text-sm text-muted-foreground/60">
+            Try adjusting parameters or expanding universe.
+          </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-slide-in stagger-2">
-          {scanResults?.map((res, i) => {
-            const isHighConviction = (res.score || 0) >= 60;
-            
+        <div className="grid animate-slide-in stagger-2 grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {scanResults.map((res, i) => {
+            const score = toNumber(res.score) ?? 0;
+            const rsi = toNumber(res.rsi);
+            const adx = toNumber(res.adx);
+            const isHighConviction = score >= 60;
+
             return (
-              <div 
-                key={`${res.tradingsymbol}-${i}`} 
-                className={`terminal-panel p-5 group flex flex-col hover:-translate-y-1 transition-all duration-300 ${
-                  isHighConviction ? 'border-primary/40 shadow-[0_0_15px_rgba(59,130,246,0.1)]' : ''
+              <div
+                key={`${res.tradingsymbol ?? "UNKNOWN"}-${i}`}
+                className={`terminal-panel group flex flex-col p-5 transition-all duration-300 hover:-translate-y-1 ${
+                  isHighConviction
+                    ? "border-primary/40 shadow-[0_0_15px_rgba(59,130,246,0.1)]"
+                    : ""
                 }`}
               >
-                <div className="flex justify-between items-start mb-4">
+                <div className="mb-4 flex items-start justify-between">
                   <div>
-                    <h3 className="text-xl font-bold font-mono text-foreground tracking-tight">{res.tradingsymbol}</h3>
-                    <div className="text-xs text-muted-foreground mt-0.5">{res.strategy}</div>
+                    <h3 className="font-mono text-xl font-bold tracking-tight text-foreground">
+                      {res.tradingsymbol ?? "-"}
+                    </h3>
+                    <div className="mt-0.5 text-xs text-muted-foreground">
+                      {res.strategy ?? "-"}
+                    </div>
                   </div>
-                  
-                  <div className={`px-2 py-1 rounded text-xs font-bold font-mono ${
-                    isHighConviction ? 'bg-primary/20 text-primary' : 'bg-white/5 text-muted-foreground'
-                  }`}>
-                    {res.score ? res.score.toFixed(1) : '-'}
+
+                  <div
+                    className={`rounded px-2 py-1 font-mono text-xs font-bold ${
+                      isHighConviction
+                        ? "bg-primary/20 text-primary"
+                        : "bg-white/5 text-muted-foreground"
+                    }`}
+                  >
+                    {score > 0 ? score.toFixed(1) : "-"}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-sm mt-2 mb-6">
+                <div className="mt-2 mb-6 grid grid-cols-2 gap-x-2 gap-y-3 text-sm">
                   <div className="flex flex-col">
-                    <span className="text-[10px] text-muted-foreground font-mono uppercase">Close</span>
-                    <span className="font-mono font-medium">{res.close?.toFixed(2) || '-'}</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-[10px] text-muted-foreground font-mono uppercase">RSI (14)</span>
-                    <span className={`font-mono font-medium ${
-                      (res.rsi || 50) > 70 ? 'text-rose-400' : (res.rsi || 50) < 30 ? 'text-green-400' : ''
-                    }`}>
-                      {res.rsi?.toFixed(1) || '-'}
+                    <span className="font-mono text-[10px] uppercase text-muted-foreground">
+                      Close
+                    </span>
+                    <span className="font-mono font-medium">
+                      {formatNumber(res.close, 2)}
                     </span>
                   </div>
+
                   <div className="flex flex-col">
-                    <span className="text-[10px] text-muted-foreground font-mono uppercase">ADX</span>
-                    <span className={`font-mono font-medium ${
-                      (res.adx || 0) > 25 ? 'text-green-400' : ''
-                    }`}>
-                      {res.adx?.toFixed(1) || '-'}
+                    <span className="font-mono text-[10px] uppercase text-muted-foreground">
+                      RSI (14)
+                    </span>
+                    <span
+                      className={`font-mono font-medium ${
+                        rsi !== null && rsi > 70
+                          ? "text-rose-400"
+                          : rsi !== null && rsi < 30
+                            ? "text-green-400"
+                            : ""
+                      }`}
+                    >
+                      {formatNumber(rsi, 1)}
                     </span>
                   </div>
+
                   <div className="flex flex-col">
-                    <span className="text-[10px] text-muted-foreground font-mono uppercase">ATR</span>
-                    <span className="font-mono font-medium">{res.atr?.toFixed(2) || '-'}</span>
+                    <span className="font-mono text-[10px] uppercase text-muted-foreground">
+                      ADX
+                    </span>
+                    <span
+                      className={`font-mono font-medium ${
+                        adx !== null && adx > 25 ? "text-green-400" : ""
+                      }`}
+                    >
+                      {formatNumber(adx, 1)}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col">
+                    <span className="font-mono text-[10px] uppercase text-muted-foreground">
+                      ATR
+                    </span>
+                    <span className="font-mono font-medium">
+                      {formatNumber(res.atr, 2)}
+                    </span>
                   </div>
                 </div>
 
-                <div className="mt-auto pt-4 border-t border-border/40 flex justify-between items-center">
+                <div className="mt-auto flex items-center justify-between border-t border-border/40 pt-4">
                   {isHighConviction ? (
-                    <div className="flex items-center text-xs text-primary font-mono gap-1">
-                      <TrendingUp className="w-3 h-3" /> ACTIONABLE
+                    <div className="flex items-center gap-1 font-mono text-xs text-primary">
+                      <TrendingUp className="h-3 w-3" />
+                      ACTIONABLE
                     </div>
                   ) : (
-                    <div className="text-xs text-muted-foreground font-mono">MONITORING</div>
+                    <div className="font-mono text-xs text-muted-foreground">
+                      MONITORING
+                    </div>
                   )}
-                  
-                  <Link 
-                    href={`/debug?symbol=${res.tradingsymbol}`}
-                    className="text-xs font-mono flex items-center text-muted-foreground group-hover:text-foreground transition-colors"
+
+                  <Link
+                    href={`/debug?symbol=${encodeURIComponent(
+                      res.tradingsymbol ?? "",
+                    )}`}
+                    className="flex items-center font-mono text-xs text-muted-foreground transition-colors group-hover:text-foreground"
                   >
-                    DEBUG <ArrowRight className="w-3 h-3 ml-1" />
+                    DEBUG <ArrowRight className="ml-1 h-3 w-3" />
                   </Link>
                 </div>
               </div>
