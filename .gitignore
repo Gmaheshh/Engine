@@ -20,3 +20,7 @@ vite.config.ts.*
 backend/.env
 .env
 *.env.local
+-e 
+# Environment files
+*.env
+*.env.*
