@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Backend API Testing for PRA-GATI Quant Trading Dashboard
-Tests all endpoints specified in the review request
+Tests all endpoints specified in the review request with focus on meta objects and data source tracking
 """
 
 import requests
