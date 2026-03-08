@@ -1,40 +1,43 @@
 import { z } from "zod";
 
 export const insertUserSchema = z.object({
-  username: z.string(),
-  password: z.string(),
+  username: z.string().min(1),
+  password: z.string().min(1),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = InsertUser & { id: string };
 
+const nullableNumber = z.number().nullable().optional();
+const nullableString = z.string().nullable().optional();
+
 export const signalSchema = z.object({
-  ts: z.string().optional(),
-  tradingsymbol: z.string().optional(),
-  strategy: z.string().optional(),
-  close: z.number().optional(),
-  ema_fast: z.number().optional(),
-  ema_slow: z.number().optional(),
-  adx: z.number().optional(),
-  atr: z.number().optional(),
-  rsi: z.number().optional(),
-  signal: z.number().optional(),
+  ts: nullableString,
+  tradingsymbol: z.string().nullable().optional(),
+  strategy: z.string().nullable().optional(),
+  close: nullableNumber,
+  ema_fast: nullableNumber,
+  ema_slow: nullableNumber,
+  adx: nullableNumber,
+  atr: nullableNumber,
+  rsi: nullableNumber,
+  signal: z.union([z.number(), z.boolean()]).nullable().optional(),
 });
 
 export const rankedSignalSchema = signalSchema.extend({
-  score: z.number().optional(),
+  score: nullableNumber,
 });
 
 export const scanResultSchema = rankedSignalSchema.extend({
-  entry: z.number().optional(),
-  sl: z.number().optional(),
-  target: z.number().optional(),
-  rr: z.number().optional(),
-  shares: z.number().optional(),
-  position_value: z.number().optional(),
-  max_loss_if_sl: z.number().optional(),
-  max_profit_if_target: z.number().optional(),
-  median_42: z.number().optional(),
+  entry: nullableNumber,
+  sl: nullableNumber,
+  target: nullableNumber,
+  rr: nullableNumber,
+  shares: nullableNumber,
+  position_value: nullableNumber,
+  max_loss_if_sl: nullableNumber,
+  max_profit_if_target: nullableNumber,
+  median_42: nullableNumber,
 });
 
 export const scanResponseSchema = z.object({
@@ -46,20 +49,20 @@ export const scanResponseSchema = z.object({
 });
 
 export const debugRowSchema = signalSchema.extend({
-  vb_signal: z.number().optional(),
-  median_42: z.number().optional(),
+  vb_signal: z.union([z.number(), z.boolean()]).nullable().optional(),
+  median_42: nullableNumber,
 });
 
 export const debugSummarySchema = z.object({
   symbol: z.string(),
-  ts: z.string().nullable().optional(),
-  close: z.number().nullable().optional(),
-  ema_fast: z.number().nullable().optional(),
-  ema_slow: z.number().nullable().optional(),
-  adx: z.number().nullable().optional(),
-  atr: z.number().nullable().optional(),
-  rsi: z.number().nullable().optional(),
-  median_42: z.number().nullable().optional(),
+  ts: nullableString,
+  close: nullableNumber,
+  ema_fast: nullableNumber,
+  ema_slow: nullableNumber,
+  adx: nullableNumber,
+  atr: nullableNumber,
+  rsi: nullableNumber,
+  median_42: nullableNumber,
   vwlm_signal: z.boolean(),
   vb_signal: z.boolean(),
   vwlm_reason: z.string(),
