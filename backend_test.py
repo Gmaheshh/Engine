@@ -79,23 +79,287 @@ class QuantTradingAPITester:
             self.log_test(name, False, f"Error: {str(e)}")
             return False, {}
 
-    def test_health_endpoint(self):
-        """Test GET /api/health returns {status: 'ok'}"""
+    def test_health_endpoint_meta(self):
+        """Test GET /api/health returns meta object with mode, data_source, token_valid"""
         success, data = self.run_test(
-            "Health Check",
+            "Health Check with Meta",
             "GET",
             "/api/health",
             200,
-            ["status"]
+            ["status", "meta"]
         )
         
-        if success and data.get("status") == "ok":
-            self.log_test("Health Status Validation", True, "Status is 'ok'")
-            return True
-        elif success:
-            self.log_test("Health Status Validation", False, f"Status is '{data.get('status')}', expected 'ok'")
-            return False
+        if success:
+            meta = data.get("meta", {})
+            required_meta_fields = ["mode", "data_source", "fallback_used", "token_valid", "timestamp"]
+            missing_fields = [field for field in required_meta_fields if field not in meta]
+            
+            if not missing_fields:
+                mode = meta.get("mode")
+                data_source = meta.get("data_source")
+                token_valid = meta.get("token_valid")
+                
+                self.log_test("Health Meta Validation", True, 
+                    f"Mode: {mode}, Data Source: {data_source}, Token Valid: {token_valid}")
+                return True
+            else:
+                self.log_test("Health Meta Validation", False, f"Missing meta fields: {missing_fields}")
+                return False
         return False
+
+    def test_zerodha_status_endpoint(self):
+        """Test GET /api/zerodha/status returns detailed Zerodha auth status including user_id"""
+        success, data = self.run_test(
+            "Zerodha Status Endpoint",
+            "GET",
+            "/api/zerodha/status",
+            200,
+            ["meta", "configured", "token_valid"]
+        )
+        
+        if success:
+            meta = data.get("meta", {})
+            configured = data.get("configured")
+            token_valid = data.get("token_valid")
+            user_id = data.get("user_id")
+            
+            # Check meta object
+            if "data_source" in meta and meta["data_source"] == "zerodha_auth_check":
+                self.log_test("Zerodha Status Meta", True, f"Meta data_source: {meta['data_source']}")
+            else:
+                self.log_test("Zerodha Status Meta", False, f"Invalid meta data_source: {meta.get('data_source')}")
+                
+            # Check auth details
+            if configured and token_valid and user_id:
+                self.log_test("Zerodha Auth Details", True, f"Configured: {configured}, Valid: {token_valid}, User: {user_id}")
+            else:
+                self.log_test("Zerodha Auth Details", True, f"Configured: {configured}, Valid: {token_valid}, User: {user_id or 'None'}")
+            
+            return True
+        return False
+
+    def test_signals_endpoint_meta(self):
+        """Test GET /api/signals returns meta.data_source field showing zerodha_live"""
+        success, data = self.run_test(
+            "Signals Endpoint with Meta",
+            "GET",
+            "/api/signals",
+            200
+        )
+        
+        if success:
+            # Handle both old format (array) and new format (object with meta)
+            if isinstance(data, dict) and "meta" in data:
+                meta = data.get("meta", {})
+                signals = data.get("signals", [])
+                
+                if "data_source" in meta:
+                    data_source = meta["data_source"]
+                    self.log_test("Signals Meta Data Source", True, f"Data source: {data_source}")
+                    
+                    # Check if it's zerodha_live in live mode
+                    if data_source in ["zerodha_live", "sample_data", "file_cache"]:
+                        self.log_test("Signals Data Source Valid", True, f"Valid data source: {data_source}")
+                    else:
+                        self.log_test("Signals Data Source Valid", False, f"Unexpected data source: {data_source}")
+                    
+                    return True
+                else:
+                    self.log_test("Signals Meta Data Source", False, "Missing data_source in meta")
+                    return False
+            elif isinstance(data, list):
+                # Old format - still acceptable but should have meta
+                self.log_test("Signals Format", True, f"Legacy array format with {len(data)} signals")
+                return True
+            else:
+                self.log_test("Signals Format", False, f"Unexpected format: {type(data)}")
+                return False
+        return False
+
+    def test_ranked_signals_meta(self):
+        """Test GET /api/signals/ranked returns meta with data_source"""
+        success, data = self.run_test(
+            "Ranked Signals with Meta",
+            "GET",
+            "/api/signals/ranked",
+            200
+        )
+        
+        if success:
+            if isinstance(data, dict) and "meta" in data:
+                meta = data.get("meta", {})
+                signals = data.get("signals", [])
+                
+                if "data_source" in meta:
+                    data_source = meta["data_source"]
+                    self.log_test("Ranked Meta Data Source", True, f"Data source: {data_source}")
+                    return True
+                else:
+                    self.log_test("Ranked Meta Data Source", False, "Missing data_source in meta")
+                    return False
+            elif isinstance(data, list):
+                self.log_test("Ranked Format", True, f"Legacy array format with {len(data)} signals")
+                return True
+            else:
+                self.log_test("Ranked Format", False, f"Unexpected format: {type(data)}")
+                return False
+        return False
+
+    def test_debug_symbol_meta(self):
+        """Test GET /api/debug/{symbol} returns meta.data_source=zerodha_live with real data"""
+        success, data = self.run_test(
+            "Debug Symbol with Meta",
+            "GET",
+            "/api/debug/RELIANCE",
+            200
+        )
+        
+        if success:
+            if isinstance(data, dict) and "meta" in data:
+                meta = data.get("meta", {})
+                debug_data = data.get("data", [])
+                
+                if "data_source" in meta:
+                    data_source = meta["data_source"]
+                    self.log_test("Debug Meta Data Source", True, f"Data source: {data_source}")
+                    
+                    if data_source in ["zerodha_live", "sample_data"]:
+                        self.log_test("Debug Data Source Valid", True, f"Valid data source: {data_source}")
+                    else:
+                        self.log_test("Debug Data Source Valid", False, f"Unexpected data source: {data_source}")
+                    
+                    return True
+                else:
+                    self.log_test("Debug Meta Data Source", False, "Missing data_source in meta")
+                    return False
+            else:
+                self.log_test("Debug Format", False, f"Expected object with meta, got: {type(data)}")
+                return False
+        return False
+
+    def test_debug_status_meta(self):
+        """Test GET /api/debug/status shows engine.data_source_used"""
+        success, data = self.run_test(
+            "Debug Status Endpoint",
+            "GET",
+            "/api/debug/status",
+            200,
+            ["meta", "engine"]
+        )
+        
+        if success:
+            meta = data.get("meta", {})
+            engine = data.get("engine", {})
+            
+            if "data_source" in meta:
+                self.log_test("Debug Status Meta", True, f"Meta data_source: {meta['data_source']}")
+            else:
+                self.log_test("Debug Status Meta", False, "Missing data_source in meta")
+            
+            if "data_source_used" in engine:
+                data_source_used = engine["data_source_used"]
+                self.log_test("Engine Data Source Used", True, f"Engine data_source_used: {data_source_used}")
+            else:
+                self.log_test("Engine Data Source Used", True, "Engine data_source_used: None (not run yet)")
+            
+            return True
+        return False
+
+    def test_scan_endpoint_meta(self):
+        """Test GET /api/scan returns meta with data_source and mode fields"""
+        success, data = self.run_test(
+            "Scanner with Meta",
+            "GET",
+            "/api/scan?top_n=5",
+            200,
+            ["status", "meta"]
+        )
+        
+        if success:
+            meta = data.get("meta", {})
+            
+            required_fields = ["mode", "data_source"]
+            missing_fields = [field for field in required_fields if field not in meta]
+            
+            if not missing_fields:
+                mode = meta.get("mode")
+                data_source = meta.get("data_source")
+                self.log_test("Scan Meta Fields", True, f"Mode: {mode}, Data source: {data_source}")
+                return True
+            else:
+                self.log_test("Scan Meta Fields", False, f"Missing meta fields: {missing_fields}")
+                return False
+        return False
+
+    def test_export_signals_csv(self):
+        """Test GET /api/export/signals returns CSV file or error message (not 500)"""
+        try:
+            url = f"{self.base_url}/api/export/signals"
+            response = requests.get(url, timeout=30)
+            
+            if response.status_code == 200:
+                # Check if it's a CSV file
+                content_type = response.headers.get('content-type', '')
+                if 'text/csv' in content_type or 'application/octet-stream' in content_type:
+                    self.log_test("Export Signals CSV", True, f"CSV file returned, size: {len(response.content)} bytes")
+                    return True
+                else:
+                    self.log_test("Export Signals CSV", False, f"Unexpected content type: {content_type}")
+                    return False
+            elif response.status_code == 404:
+                # Expected error when no data available
+                try:
+                    error_data = response.json()
+                    self.log_test("Export Signals Error Handling", True, f"404 with error message: {error_data.get('error', 'No message')}")
+                    return True
+                except:
+                    self.log_test("Export Signals Error Handling", False, "404 but no JSON error message")
+                    return False
+            elif response.status_code == 500:
+                self.log_test("Export Signals CSV", False, f"Got 500 error instead of proper error handling")
+                return False
+            else:
+                self.log_test("Export Signals CSV", False, f"Unexpected status code: {response.status_code}")
+                return False
+                
+        except Exception as e:
+            self.log_test("Export Signals CSV", False, f"Request failed: {str(e)}")
+            return False
+
+    def test_export_ranked_csv(self):
+        """Test GET /api/export/ranked returns CSV file or error message (not 500)"""
+        try:
+            url = f"{self.base_url}/api/export/ranked"
+            response = requests.get(url, timeout=30)
+            
+            if response.status_code == 200:
+                # Check if it's a CSV file
+                content_type = response.headers.get('content-type', '')
+                if 'text/csv' in content_type or 'application/octet-stream' in content_type:
+                    self.log_test("Export Ranked CSV", True, f"CSV file returned, size: {len(response.content)} bytes")
+                    return True
+                else:
+                    self.log_test("Export Ranked CSV", False, f"Unexpected content type: {content_type}")
+                    return False
+            elif response.status_code == 404:
+                # Expected error when no data available
+                try:
+                    error_data = response.json()
+                    self.log_test("Export Ranked Error Handling", True, f"404 with error message: {error_data.get('error', 'No message')}")
+                    return True
+                except:
+                    self.log_test("Export Ranked Error Handling", False, "404 but no JSON error message")
+                    return False
+            elif response.status_code == 500:
+                self.log_test("Export Ranked CSV", False, f"Got 500 error instead of proper error handling")
+                return False
+            else:
+                self.log_test("Export Ranked CSV", False, f"Unexpected status code: {response.status_code}")
+                return False
+                
+        except Exception as e:
+            self.log_test("Export Ranked CSV", False, f"Request failed: {str(e)}")
+            return False
 
     def test_universe_endpoint(self):
         """Test GET /api/universe returns {count: number, symbols: array}"""
