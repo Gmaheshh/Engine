@@ -1,26 +1,35 @@
-import express, { type Request, Response, NextFunction } from "express";
+import express, { type NextFunction, type Request, type Response } from "express";
+import { createServer } from "http";
+
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
-import { createServer } from "http";
+
+declare global {
+  namespace Express {
+    interface Request {
+      rawBody?: Buffer;
+    }
+  }
+}
 
 const app = express();
 const httpServer = createServer(app);
 
-declare module "http" {
-  interface IncomingMessage {
-    rawBody: unknown;
-  }
-}
-
 app.use(
   express.json({
+    limit: "10mb",
     verify: (req, _res, buf) => {
-      req.rawBody = buf;
+      req.rawBody = Buffer.from(buf);
     },
   }),
 );
 
-app.use(express.urlencoded({ extended: false }));
+app.use(
+  express.urlencoded({
+    extended: false,
+    limit: "10mb",
+  }),
+);
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -33,71 +42,85 @@ export function log(message: string, source = "express") {
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
+function safeStringify(value: unknown, maxLength = 800) {
+  try {
+    const text = JSON.stringify(value);
+    if (!text) return "";
+    return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
+  } catch {
+    return "[unserializable-response]";
+  }
+}
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
 
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
+  let capturedJsonResponse: unknown = undefined;
+
+  const originalJson = res.json.bind(res);
+  res.json = ((body: unknown) => {
+    capturedJsonResponse = body;
+    return originalJson(body);
+  }) as Response["json"];
 
   res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
+    if (!path.startsWith("/api")) return;
 
-      log(logLine);
+    const duration = Date.now() - start;
+    let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+
+    if (capturedJsonResponse !== undefined) {
+      logLine += ` :: ${safeStringify(capturedJsonResponse)}`;
     }
+
+    log(logLine);
   });
 
   next();
 });
 
-(async () => {
-  await registerRoutes(httpServer, app);
+async function bootstrap() {
+  try {
+    await registerRoutes(httpServer, app);
 
-  app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
+      const status = err?.status || err?.statusCode || 500;
+      const message =
+        typeof err?.message === "string" && err.message.trim().length > 0
+          ? err.message
+          : "Internal Server Error";
 
-    console.error("Internal Server Error:", err);
+      console.error("[server-error]", err);
 
-    if (res.headersSent) {
-      return next(err);
+      if (res.headersSent) {
+        return next(err);
+      }
+
+      return res.status(status).json({ message });
+    });
+
+    if (process.env.NODE_ENV === "production") {
+      serveStatic(app);
+    } else {
+      const { setupVite } = await import("./vite");
+      await setupVite(httpServer, app);
     }
 
-    return res.status(status).json({ message });
-  });
+    const port = Number.parseInt(process.env.PORT || "5000", 10);
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (process.env.NODE_ENV === "production") {
-    serveStatic(app);
-  } else {
-    const { setupVite } = await import("./vite");
-    await setupVite(httpServer, app);
-  }
-
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || "5000", 10);
-  httpServer.listen(
-    {
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    },
-    () => {
+    httpServer.listen(port, "0.0.0.0", () => {
       log(`serving on port ${port}`);
-    },
-  );
-})();
+    });
+
+    httpServer.on("error", (error) => {
+      console.error("[http-server-error]", error);
+      process.exit(1);
+    });
+  } catch (error) {
+    console.error("[bootstrap-error]", error);
+    process.exit(1);
+  }
+}
+
+void bootstrap();
