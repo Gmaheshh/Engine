@@ -24,6 +24,7 @@ function useApi(endpoint, options = {}) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [meta, setMeta] = useState(null);
 
   const fetchData = async () => {
     if (!endpoint) {
@@ -36,9 +37,20 @@ function useApi(endpoint, options = {}) {
       const res = await fetch(`${API_BASE}${endpoint}`, {
         headers: { 'Accept': 'application/json' }
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      setData(json);
+      
+      // Extract meta if present
+      if (json.meta) {
+        setMeta(json.meta);
+      }
+      
+      // Handle error responses
+      if (!res.ok || json.error) {
+        setError(json.error || `HTTP ${res.status}`);
+        setData(json);
+      } else {
+        setData(json);
+      }
     } catch (e) {
       setError(e.message);
     } finally {
@@ -54,10 +66,95 @@ function useApi(endpoint, options = {}) {
     }
   }, [endpoint]);
 
-  return { data, loading, error, refetch: fetchData };
+  return { data, loading, error, meta, refetch: fetchData };
 }
 
 // Components
+function DataSourceBadge({ meta, error }) {
+  if (error) {
+    return (
+      <span className="px-2 py-0.5 text-xs font-mono rounded bg-red-500/20 text-red-400 border border-red-500/30">
+        ERROR
+      </span>
+    );
+  }
+  
+  if (!meta) return null;
+  
+  const source = meta.data_source;
+  const mode = meta.mode;
+  
+  if (source === 'zerodha_live') {
+    return (
+      <span className="px-2 py-0.5 text-xs font-mono rounded bg-green-500/20 text-green-400 border border-green-500/30">
+        LIVE
+      </span>
+    );
+  }
+  
+  if (source === 'sample_data' || mode === 'demo') {
+    return (
+      <span className="px-2 py-0.5 text-xs font-mono rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
+        DEMO
+      </span>
+    );
+  }
+  
+  if (source === 'file_cache') {
+    return (
+      <span className="px-2 py-0.5 text-xs font-mono rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">
+        CACHED
+      </span>
+    );
+  }
+  
+  return (
+    <span className="px-2 py-0.5 text-xs font-mono rounded bg-gray-500/20 text-gray-400 border border-gray-500/30">
+      {source?.toUpperCase() || 'UNKNOWN'}
+    </span>
+  );
+}
+
+function ModeIndicator({ health }) {
+  const mode = health?.mode;
+  const isDemo = health?.demo_mode;
+  const tokenValid = health?.zerodha?.token_valid;
+  
+  if (isDemo) {
+    return (
+      <div data-testid="mode-indicator" className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-amber-500/10 border border-amber-500/30">
+        <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></div>
+        <span className="text-xs font-mono text-amber-400">DEMO MODE</span>
+      </div>
+    );
+  }
+  
+  if (tokenValid === false) {
+    return (
+      <div data-testid="mode-indicator" className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-red-500/10 border border-red-500/30">
+        <div className="w-2 h-2 rounded-full bg-red-400"></div>
+        <span className="text-xs font-mono text-red-400">LIVE - TOKEN INVALID</span>
+      </div>
+    );
+  }
+  
+  if (tokenValid === true) {
+    return (
+      <div data-testid="mode-indicator" className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-green-500/10 border border-green-500/30">
+        <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+        <span className="text-xs font-mono text-green-400">LIVE - CONNECTED</span>
+      </div>
+    );
+  }
+  
+  return (
+    <div data-testid="mode-indicator" className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-gray-500/10 border border-gray-500/30">
+      <div className="w-2 h-2 rounded-full bg-gray-400"></div>
+      <span className="text-xs font-mono text-gray-400">CHECKING...</span>
+    </div>
+  );
+}
+
 function SignalBadge({ signal }) {
   const normalized = normalizeSignal(signal);
   if (normalized === 1 || normalized > 0) {
@@ -82,10 +179,30 @@ function StatusIndicator({ isOnline }) {
   );
 }
 
-function StatCard({ title, value, subtitle, loading }) {
+function ErrorBanner({ error, onDismiss }) {
+  if (!error) return null;
+  
+  return (
+    <div data-testid="error-banner" className="flex items-start gap-3 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-red-400 mb-6">
+      <span className="text-xl">⚠</span>
+      <div className="flex-1">
+        <h3 className="text-sm font-bold mb-1">Error</h3>
+        <p className="text-sm opacity-90 font-mono">{error}</p>
+      </div>
+      {onDismiss && (
+        <button onClick={onDismiss} className="text-red-400 hover:text-red-300">✕</button>
+      )}
+    </div>
+  );
+}
+
+function StatCard({ title, value, subtitle, loading, meta }) {
   return (
     <div className="terminal-panel p-4">
-      <div className="text-xs font-mono text-muted-foreground mb-1">{title}</div>
+      <div className="flex items-center justify-between mb-1">
+        <div className="text-xs font-mono text-muted-foreground">{title}</div>
+        {meta && <DataSourceBadge meta={meta} />}
+      </div>
       <div className="text-3xl font-mono font-bold text-foreground">
         {loading ? '-' : value}
       </div>
@@ -94,7 +211,21 @@ function StatCard({ title, value, subtitle, loading }) {
   );
 }
 
-function SignalsTable({ signals = [], loading, showScore = false }) {
+function SignalsTable({ signals = [], loading, showScore = false, meta, error }) {
+  if (error) {
+    return (
+      <div className="terminal-panel p-6 border-red-500/30">
+        <div className="flex items-center gap-3 text-red-400">
+          <span className="text-2xl">⚠</span>
+          <div>
+            <div className="font-mono font-bold mb-1">DATA_FETCH_FAILED</div>
+            <p className="text-sm opacity-80">{error}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="terminal-panel p-6">
@@ -110,14 +241,20 @@ function SignalsTable({ signals = [], loading, showScore = false }) {
   if (!signals || signals.length === 0) {
     return (
       <div className="terminal-panel p-12 text-center border-dashed">
-        <div className="text-muted-foreground font-mono mb-2">NO_DATA_FOUND</div>
-        <p className="text-sm text-muted-foreground/60">Click RUN_ENGINE to generate signals</p>
+        <div className="text-muted-foreground font-mono mb-2">NO_SIGNALS_FOUND</div>
+        <p className="text-sm text-muted-foreground/60">Run the engine to generate signals</p>
       </div>
     );
   }
 
   return (
     <div className="terminal-panel overflow-x-auto">
+      {meta && (
+        <div className="px-4 py-2 border-b border-border/30 flex items-center justify-between bg-black/20">
+          <span className="text-xs font-mono text-muted-foreground">DATA SOURCE:</span>
+          <DataSourceBadge meta={meta} />
+        </div>
+      )}
       <table className="w-full text-sm text-left whitespace-nowrap">
         <thead className="text-xs text-muted-foreground font-mono uppercase bg-black/40 border-b border-border/50">
           <tr>
@@ -216,11 +353,15 @@ function Sidebar({ activePage, setActivePage, onRunEngine, isRunning }) {
 }
 
 // Pages
-function DashboardPage({ health, signals, rankedSignals, universe, onRunEngine, isRunning }) {
-  const activeSignals = (signals || []).filter(s => normalizeSignal(s.signal) !== 0).length;
+function DashboardPage({ health, signalsData, rankedData, universe, onRunEngine, isRunning }) {
+  const signals = signalsData?.signals || signalsData || [];
+  const rankedSignals = rankedData?.signals || rankedData || [];
+  const activeSignals = (Array.isArray(signals) ? signals : []).filter(s => normalizeSignal(s.signal) !== 0).length;
   const topScore = rankedSignals?.length > 0 ? (rankedSignals[0]?.score || 0) : 0;
   const currentTime = new Date().toISOString().split('T')[1]?.substring(0, 8) || '--:--:--';
   const isHealthy = health?.status === 'ok';
+  const tokenValid = health?.zerodha?.token_valid;
+  const isDemo = health?.demo_mode;
 
   return (
     <div data-testid="dashboard-page" className="space-y-6">
@@ -229,30 +370,53 @@ function DashboardPage({ health, signals, rankedSignals, universe, onRunEngine, 
           <h2 className="text-2xl font-bold text-foreground">System Overview</h2>
           <p className="mt-1 font-mono text-sm text-muted-foreground">Real-time quantitative analysis engine</p>
         </div>
-        <button 
-          data-testid="trigger-scan-btn"
-          onClick={onRunEngine}
-          disabled={isRunning}
-          className="px-4 py-2 rounded bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 font-mono text-xs"
-        >
-          {isRunning ? 'COMPUTING...' : 'TRIGGER_SCAN'}
-        </button>
+        <div className="flex items-center gap-3">
+          <ModeIndicator health={health} />
+          <button 
+            data-testid="trigger-scan-btn"
+            onClick={onRunEngine}
+            disabled={isRunning}
+            className="px-4 py-2 rounded bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 font-mono text-xs"
+          >
+            {isRunning ? 'COMPUTING...' : 'TRIGGER_SCAN'}
+          </button>
+        </div>
       </div>
 
-      {!isHealthy && (
-        <div data-testid="health-warning" className="flex items-start gap-3 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-red-400">
-          <span>⚠</span>
+      {/* Live mode token invalid warning */}
+      {!isDemo && tokenValid === false && (
+        <div data-testid="token-warning" className="flex items-start gap-3 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-red-400">
+          <span className="text-xl">⚠</span>
           <div>
-            <h3 className="text-sm font-bold">Engine Offline or Degraded</h3>
-            <p className="mt-1 text-sm opacity-80">The Python backend is not responding normally.</p>
+            <h3 className="text-sm font-bold">Zerodha Token Invalid</h3>
+            <p className="mt-1 text-sm opacity-80">
+              Running in LIVE mode but Zerodha access token is invalid or expired. 
+              Please refresh your token. Data requests will fail until token is valid.
+            </p>
+            <p className="mt-2 text-xs opacity-60 font-mono">
+              Last error: {health?.zerodha?.error || 'Unknown'}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Demo mode notice */}
+      {isDemo && (
+        <div data-testid="demo-notice" className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-amber-400">
+          <span className="text-xl">ℹ</span>
+          <div>
+            <h3 className="text-sm font-bold">Demo Mode Active</h3>
+            <p className="mt-1 text-sm opacity-80">
+              Using sample data for all calculations. Set DEMO_MODE=false in .env for live Zerodha data.
+            </p>
           </div>
         </div>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Monitored Universe" value={universe?.length || 0} subtitle="Total tradable symbols" />
-        <StatCard title="Active Signals" value={activeSignals} subtitle="Non-zero signals" />
-        <StatCard title="Ranked Opportunities" value={rankedSignals?.length || 0} subtitle="Scored via ensemble" />
+        <StatCard title="Active Signals" value={activeSignals} subtitle="Non-zero signals" meta={signalsData?.meta} />
+        <StatCard title="Ranked Opportunities" value={rankedSignals?.length || 0} subtitle="Scored via ensemble" meta={rankedData?.meta} />
         <StatCard title="Max Confidence" value={formatNumber(topScore, 1)} subtitle="Strongest signal" />
       </div>
 
@@ -260,9 +424,12 @@ function DashboardPage({ health, signals, rankedSignals, universe, onRunEngine, 
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-bold">Top Ranked Opportunities</h3>
-            <span className="px-2 py-1 text-xs font-mono rounded bg-primary/10 text-primary">LIMIT: 5</span>
+            <div className="flex items-center gap-2">
+              <DataSourceBadge meta={rankedData?.meta} />
+              <span className="px-2 py-1 text-xs font-mono rounded bg-primary/10 text-primary">LIMIT: 5</span>
+            </div>
           </div>
-          <SignalsTable signals={(rankedSignals || []).slice(0, 5)} showScore />
+          <SignalsTable signals={(rankedSignals || []).slice(0, 5)} showScore meta={rankedData?.meta} />
         </div>
         
         <div className="space-y-4">
@@ -274,20 +441,26 @@ function DashboardPage({ health, signals, rankedSignals, universe, onRunEngine, 
             </div>
             <div className="flex gap-4 mt-2">
               <span className="text-muted-foreground/50">{currentTime}</span>
-              <span>Health check: {health?.status || 'UNKNOWN'}</span>
+              <span>Mode: <span className={isDemo ? 'text-amber-400' : 'text-green-400'}>{isDemo ? 'DEMO' : 'LIVE'}</span></span>
             </div>
             <div className="flex gap-4 mt-2">
               <span className="text-muted-foreground/50">{currentTime}</span>
-              <span>Data provider: {health?.data_provider || 'N/A'}</span>
+              <span>Zerodha: {tokenValid === true ? <span className="text-green-400">CONNECTED</span> : tokenValid === false ? <span className="text-red-400">INVALID TOKEN</span> : <span className="text-gray-400">NOT CHECKED</span>}</span>
             </div>
             <div className="flex gap-4 mt-2">
               <span className="text-muted-foreground/50">{currentTime}</span>
-              <span>Demo mode: {health?.demo_mode ? 'ON' : 'OFF'}</span>
+              <span>Data source: {signalsData?.meta?.data_source || 'N/A'}</span>
             </div>
-            {signals?.length > 0 && (
+            {health?.zerodha?.last_successful_fetch && (
               <div className="flex gap-4 mt-2">
                 <span className="text-muted-foreground/50">{currentTime}</span>
-                <span className="text-blue-400">Loaded {signals.length} signals</span>
+                <span className="text-blue-400">Last fetch: {health.zerodha.last_successful_fetch.substring(11, 19)}</span>
+              </div>
+            )}
+            {health?.zerodha?.error && (
+              <div className="flex gap-4 mt-2">
+                <span className="text-muted-foreground/50">{currentTime}</span>
+                <span className="text-red-400">Error: {health.zerodha.error.substring(0, 50)}...</span>
               </div>
             )}
           </div>
@@ -297,12 +470,16 @@ function DashboardPage({ health, signals, rankedSignals, universe, onRunEngine, 
   );
 }
 
-function SignalsPage({ signals, loading }) {
+function SignalsPage({ signalsData, loading }) {
   const [search, setSearch] = useState('');
   const [filterActive, setFilterActive] = useState(false);
+  
+  const signals = signalsData?.signals || signalsData || [];
+  const meta = signalsData?.meta;
+  const error = signalsData?.error;
 
   const filtered = useMemo(() => {
-    let result = signals || [];
+    let result = Array.isArray(signals) ? signals : [];
     if (search.trim()) {
       result = result.filter(s => s.tradingsymbol?.toLowerCase().includes(search.toLowerCase()));
     }
@@ -319,7 +496,8 @@ function SignalsPage({ signals, loading }) {
           <h2 className="text-2xl font-bold text-foreground">Live Signals</h2>
           <p className="mt-1 font-mono text-sm text-muted-foreground">Raw output from all strategies</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 items-center">
+          <DataSourceBadge meta={meta} error={error} />
           <input
             type="text"
             data-testid="signal-search"
@@ -337,10 +515,20 @@ function SignalsPage({ signals, loading }) {
           >
             ACTIVE_ONLY
           </button>
+          <a 
+            href={`${API_BASE}/api/export/signals`}
+            data-testid="export-signals-btn"
+            className="h-9 px-4 rounded bg-green-500/20 text-green-400 border border-green-500/30 font-mono text-xs flex items-center gap-2 hover:bg-green-500/30"
+          >
+            ↓ CSV
+          </a>
         </div>
       </div>
-      <SignalsTable signals={filtered} loading={loading} />
-      {!loading && (
+      
+      <ErrorBanner error={error} />
+      <SignalsTable signals={filtered} loading={loading} meta={meta} error={error} />
+      
+      {!loading && !error && (
         <div className="text-right font-mono text-xs text-muted-foreground">
           Showing {filtered.length} of {(signals || []).length} signals
         </div>
@@ -349,38 +537,60 @@ function SignalsPage({ signals, loading }) {
   );
 }
 
-function RankedPage({ rankedSignals, loading }) {
+function RankedPage({ rankedData, loading }) {
+  const signals = rankedData?.signals || rankedData || [];
+  const meta = rankedData?.meta;
+  const error = rankedData?.error;
+
   const sorted = useMemo(() => {
-    return [...(rankedSignals || [])].sort((a, b) => (b.score || 0) - (a.score || 0));
-  }, [rankedSignals]);
+    return [...(Array.isArray(signals) ? signals : [])].sort((a, b) => (b.score || 0) - (a.score || 0));
+  }, [signals]);
 
   return (
     <div data-testid="ranked-page" className="space-y-6">
-      <div>
-        <div className="flex items-center gap-3 mb-2">
-          <div className="h-8 w-2 rounded-sm bg-amber-500"></div>
-          <h2 className="text-2xl font-bold text-foreground">Ranked Opportunities</h2>
+      <div className="flex items-end justify-between">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="h-8 w-2 rounded-sm bg-amber-500"></div>
+            <h2 className="text-2xl font-bold text-foreground">Ranked Opportunities</h2>
+          </div>
+          <p className="ml-5 font-mono text-sm text-muted-foreground">
+            Signals processed through ensemble scoring
+          </p>
         </div>
-        <p className="ml-5 font-mono text-sm text-muted-foreground">
-          Signals processed through ensemble scoring
-        </p>
+        <div className="flex items-center gap-3">
+          <DataSourceBadge meta={meta} error={error} />
+          <a 
+            href={`${API_BASE}/api/export/ranked`}
+            data-testid="export-ranked-btn"
+            className="h-9 px-4 rounded bg-green-500/20 text-green-400 border border-green-500/30 font-mono text-xs flex items-center gap-2 hover:bg-green-500/30"
+          >
+            ↓ CSV
+          </a>
+        </div>
       </div>
 
-      <div>
-        <div className="flex items-center justify-between p-4 rounded-t-lg border border-b-0 border-amber-500/20 bg-amber-500/10">
-          <h3 className="font-mono text-sm font-bold text-amber-400">TOP HIGH-CONVICTION SETUPS</h3>
-          <span className="font-mono text-xs text-amber-400/60">SORT: DESC(SCORE)</span>
-        </div>
-        <div className="border border-amber-500/20 rounded-b-lg overflow-hidden">
-          <SignalsTable signals={sorted.slice(0, 10)} loading={loading} showScore />
-        </div>
-      </div>
+      <ErrorBanner error={error} />
 
-      {!loading && sorted.length > 10 && (
-        <div className="mt-8">
-          <h3 className="mb-4 font-mono text-sm text-muted-foreground">REMAINDER OF UNIVERSE</h3>
-          <SignalsTable signals={sorted.slice(10)} showScore />
-        </div>
+      {!error && (
+        <>
+          <div>
+            <div className="flex items-center justify-between p-4 rounded-t-lg border border-b-0 border-amber-500/20 bg-amber-500/10">
+              <h3 className="font-mono text-sm font-bold text-amber-400">TOP HIGH-CONVICTION SETUPS</h3>
+              <span className="font-mono text-xs text-amber-400/60">SORT: DESC(SCORE)</span>
+            </div>
+            <div className="border border-amber-500/20 rounded-b-lg overflow-hidden">
+              <SignalsTable signals={sorted.slice(0, 10)} loading={loading} showScore meta={meta} />
+            </div>
+          </div>
+
+          {!loading && sorted.length > 10 && (
+            <div className="mt-8">
+              <h3 className="mb-4 font-mono text-sm text-muted-foreground">REMAINDER OF UNIVERSE</h3>
+              <SignalsTable signals={sorted.slice(10)} showScore meta={meta} />
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -389,8 +599,10 @@ function RankedPage({ rankedSignals, loading }) {
 function ScannerPage() {
   const [topN, setTopN] = useState('20');
   const [queryVal, setQueryVal] = useState('20');
-  const { data, loading } = useApi(`/api/scan?top_n=${queryVal}`);
+  const { data, loading, error } = useApi(`/api/scan?top_n=${queryVal}`);
   const results = data?.results || [];
+  const meta = data?.meta;
+  const apiError = data?.error || error;
 
   return (
     <div data-testid="scanner-page" className="space-y-6">
@@ -402,6 +614,7 @@ function ScannerPage() {
           <p className="mt-1 font-mono text-sm text-muted-foreground">Cross-sectional analysis</p>
         </div>
         <div className="flex items-center gap-3">
+          <DataSourceBadge meta={meta} error={apiError} />
           <span className="font-mono text-sm text-muted-foreground">TOP_N:</span>
           <input
             type="number"
@@ -415,12 +628,14 @@ function ScannerPage() {
             data-testid="run-scan-btn"
             onClick={() => setQueryVal(topN)}
             disabled={loading}
-            className="h-9 px-4 rounded bg-primary text-primary-foreground font-mono text-xs"
+            className="h-9 px-4 rounded bg-primary text-primary-foreground font-mono text-xs disabled:opacity-50"
           >
             {loading ? 'SCANNING...' : 'RUN_SCAN'}
           </button>
         </div>
       </div>
+
+      <ErrorBanner error={apiError} />
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -430,7 +645,7 @@ function ScannerPage() {
             </div>
           ))}
         </div>
-      ) : results.length === 0 ? (
+      ) : apiError ? null : results.length === 0 ? (
         <div className="terminal-panel border-dashed p-12 text-center">
           <div className="text-4xl mb-4">⊕</div>
           <div className="font-mono text-muted-foreground">NO_RESULTS_FOUND</div>
@@ -490,11 +705,15 @@ function ScannerPage() {
 
 function ChartsPage({ universe }) {
   const [symbol, setSymbol] = useState('RELIANCE');
-  const { data: debugData, loading } = useApi(symbol ? `/api/debug/${symbol}` : null);
+  const { data: debugData, loading, error } = useApi(symbol ? `/api/debug/${symbol}` : null);
+  
+  const chartDataRaw = debugData?.data || debugData;
+  const meta = debugData?.meta;
+  const apiError = debugData?.error || error;
 
   const chartData = useMemo(() => {
-    if (!debugData || !Array.isArray(debugData)) return [];
-    return debugData.map(d => ({
+    if (!chartDataRaw || !Array.isArray(chartDataRaw)) return [];
+    return chartDataRaw.map(d => ({
       ts: d.ts ? d.ts.substring(5, 16).replace('T', ' ') : '',
       close: d.close,
       ema_fast: d.ema_fast,
@@ -502,7 +721,7 @@ function ChartsPage({ universe }) {
       rsi: d.rsi,
       adx: d.adx
     }));
-  }, [debugData]);
+  }, [chartDataRaw]);
 
   return (
     <div data-testid="charts-page" className="space-y-6">
@@ -514,6 +733,7 @@ function ChartsPage({ universe }) {
           <p className="mt-1 font-mono text-sm text-muted-foreground">Technical analysis visualization</p>
         </div>
         <div className="flex items-center gap-3">
+          <DataSourceBadge meta={meta} error={apiError} />
           <span className="font-mono text-sm text-muted-foreground">SYMBOL:</span>
           <select
             data-testid="chart-symbol-select"
@@ -528,13 +748,15 @@ function ChartsPage({ universe }) {
         </div>
       </div>
 
+      <ErrorBanner error={apiError} />
+
       <div className="terminal-panel p-6">
         <h3 className="font-mono text-sm text-muted-foreground mb-4">PRICE + EMA ({symbol})</h3>
         {loading ? (
           <div className="h-64 flex items-center justify-center text-muted-foreground font-mono">
             LOADING_CHART_DATA...
           </div>
-        ) : chartData.length === 0 ? (
+        ) : apiError ? null : chartData.length === 0 ? (
           <div className="h-64 flex items-center justify-center text-muted-foreground font-mono">
             NO_DATA_AVAILABLE
           </div>
@@ -572,35 +794,36 @@ function ChartsPage({ universe }) {
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="terminal-panel p-4">
-          <div className="text-xs font-mono text-muted-foreground mb-2">LATEST CLOSE</div>
-          <div className="text-2xl font-mono font-bold">
-            {chartData.length > 0 ? formatNumber(chartData[chartData.length - 1].close) : '-'}
+      {!apiError && chartData.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="terminal-panel p-4">
+            <div className="text-xs font-mono text-muted-foreground mb-2">LATEST CLOSE</div>
+            <div className="text-2xl font-mono font-bold">
+              {formatNumber(chartData[chartData.length - 1].close)}
+            </div>
           </div>
-        </div>
-        <div className="terminal-panel p-4">
-          <div className="text-xs font-mono text-muted-foreground mb-2">EMA TREND</div>
-          <div className="text-2xl font-mono font-bold">
-            {chartData.length > 0 && chartData[chartData.length - 1].ema_fast > chartData[chartData.length - 1].ema_slow
-              ? <span className="text-green-400">BULLISH ↑</span>
-              : <span className="text-rose-400">BEARISH ↓</span>
-            }
+          <div className="terminal-panel p-4">
+            <div className="text-xs font-mono text-muted-foreground mb-2">EMA TREND</div>
+            <div className="text-2xl font-mono font-bold">
+              {chartData[chartData.length - 1].ema_fast > chartData[chartData.length - 1].ema_slow
+                ? <span className="text-green-400">BULLISH ↑</span>
+                : <span className="text-rose-400">BEARISH ↓</span>
+              }
+            </div>
           </div>
-        </div>
-        <div className="terminal-panel p-4">
-          <div className="text-xs font-mono text-muted-foreground mb-2">RSI STATUS</div>
-          <div className="text-2xl font-mono font-bold">
-            {chartData.length > 0 ? (
-              chartData[chartData.length - 1].rsi > 70 
+          <div className="terminal-panel p-4">
+            <div className="text-xs font-mono text-muted-foreground mb-2">RSI STATUS</div>
+            <div className="text-2xl font-mono font-bold">
+              {chartData[chartData.length - 1].rsi > 70 
                 ? <span className="text-rose-400">OVERBOUGHT</span>
                 : chartData[chartData.length - 1].rsi < 30 
                   ? <span className="text-green-400">OVERSOLD</span>
                   : <span className="text-muted-foreground">NEUTRAL</span>
-            ) : '-'}
+              }
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -644,7 +867,7 @@ function UniversePage({ universe, loading }) {
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Source:</span>
-              <span className="text-green-400">Live Backend</span>
+              <span className="text-green-400">Static Config</span>
             </div>
           </div>
         </div>
@@ -682,13 +905,17 @@ function UniversePage({ universe, loading }) {
 function DebugPage() {
   const [symbol, setSymbol] = useState('');
   const [activeSymbol, setActiveSymbol] = useState('');
-  const { data: rows, loading: rowsLoading, error: rowsError } = useApi(
+  const { data: rowsData, loading: rowsLoading, error: rowsError } = useApi(
     activeSymbol ? `/api/debug/${activeSymbol}` : null
   );
   const { data: summary, loading: summaryLoading } = useApi(
     activeSymbol ? `/api/debug/${activeSymbol}/summary` : null
   );
   const { data: debugStatus } = useApi('/api/debug/status');
+
+  const rows = rowsData?.data || rowsData;
+  const meta = rowsData?.meta || summary?.meta;
+  const apiError = rowsData?.error || rowsError;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -722,24 +949,37 @@ function DebugPage() {
       {debugStatus && (
         <div className="terminal-panel p-4">
           <h3 className="font-mono text-xs text-muted-foreground mb-4">ENGINE STATUS</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
             <div>
-              <div className="text-xs text-muted-foreground">Last Run</div>
-              <div className="font-mono">{debugStatus.engine?.last_run ? 'Yes' : 'Never'}</div>
+              <div className="text-xs text-muted-foreground">Mode</div>
+              <div className={`font-mono font-bold ${debugStatus.config?.demo_mode ? 'text-amber-400' : 'text-green-400'}`}>
+                {debugStatus.config?.demo_mode ? 'DEMO' : 'LIVE'}
+              </div>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">Status</div>
-              <div className="font-mono">{debugStatus.engine?.last_run_status || 'N/A'}</div>
+              <div className="text-xs text-muted-foreground">Token Valid</div>
+              <div className={`font-mono font-bold ${debugStatus.zerodha?.token_valid === true ? 'text-green-400' : debugStatus.zerodha?.token_valid === false ? 'text-red-400' : 'text-gray-400'}`}>
+                {debugStatus.zerodha?.token_valid === true ? 'YES' : debugStatus.zerodha?.token_valid === false ? 'NO' : 'N/A'}
+              </div>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">Signals Count</div>
+              <div className="text-xs text-muted-foreground">Last Fetch</div>
+              <div className="font-mono">{debugStatus.zerodha?.last_successful_fetch?.substring(11, 19) || 'Never'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Signals</div>
               <div className="font-mono">{debugStatus.data?.signals_count || 0}</div>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">Universe Size</div>
-              <div className="font-mono">{debugStatus.config?.universe_size || 0}</div>
+              <div className="text-xs text-muted-foreground">Data Source</div>
+              <div className="font-mono text-xs">{debugStatus.engine?.data_source_used || 'N/A'}</div>
             </div>
           </div>
+          {debugStatus.zerodha?.error && (
+            <div className="mt-4 p-3 rounded bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-mono">
+              {debugStatus.zerodha.error}
+            </div>
+          )}
         </div>
       )}
 
@@ -764,18 +1004,16 @@ function DebugPage() {
         </form>
       </div>
 
-      {rowsError && activeSymbol && (
-        <div className="flex items-center gap-3 rounded border border-red-500/30 bg-red-500/10 p-4 font-mono text-red-400">
-          <span>⚠</span>
-          <div>FAILED TO FETCH DATA FOR "{activeSymbol}": Symbol may not exist in universe.</div>
-        </div>
-      )}
+      <ErrorBanner error={apiError} />
 
-      {activeSymbol && hasData && !loading && (
+      {activeSymbol && hasData && !loading && !apiError && (
         <div className="space-y-6">
-          {summary && (
+          {summary && !summary.error && (
             <div className="terminal-panel border-primary/30 bg-gradient-to-br from-primary/5 to-transparent p-6">
-              <h3 className="mb-4 font-mono text-sm uppercase text-primary">Analysis Summary: {activeSymbol}</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-mono text-sm uppercase text-primary">Analysis Summary: {activeSymbol}</h3>
+                <DataSourceBadge meta={meta} />
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <div className="text-xs text-muted-foreground font-mono mb-1">VWLM SIGNAL</div>
@@ -794,7 +1032,10 @@ function DebugPage() {
           )}
 
           <div>
-            <h3 className="mb-4 font-mono text-sm text-muted-foreground">INTERNAL STATE (LAST 10 TICKS)</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-mono text-sm text-muted-foreground">INTERNAL STATE (LAST 10 TICKS)</h3>
+              <DataSourceBadge meta={meta} />
+            </div>
             <div className="terminal-panel overflow-x-auto">
               <table className="w-full whitespace-nowrap text-left text-sm">
                 <thead className="text-[10px] uppercase text-muted-foreground font-mono border-b border-border/50 bg-black/40">
@@ -853,6 +1094,14 @@ function DebugPage() {
 function SettingsPage({ health }) {
   const { data: config } = useApi('/api/config');
   const { data: debugStatus } = useApi('/api/debug/status');
+  const { data: zerodhaStatus, refetch: recheckZerodha } = useApi('/api/zerodha/status');
+  const [isChecking, setIsChecking] = useState(false);
+
+  const handleRecheckToken = async () => {
+    setIsChecking(true);
+    await recheckZerodha();
+    setIsChecking(false);
+  };
 
   return (
     <div data-testid="settings-page" className="space-y-6">
@@ -860,19 +1109,77 @@ function SettingsPage({ health }) {
         <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
           <span className="text-primary">⚡</span> Settings & Configuration
         </h2>
-        <p className="mt-1 font-mono text-sm text-muted-foreground">System configuration and status</p>
+        <p className="mt-1 font-mono text-sm text-muted-foreground">System configuration and Zerodha auth status</p>
+      </div>
+
+      {/* Zerodha Auth Status - Prominent */}
+      <div className={`terminal-panel p-6 ${zerodhaStatus?.token_valid === false ? 'border-red-500/50' : zerodhaStatus?.token_valid === true ? 'border-green-500/50' : ''}`}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-mono text-sm text-muted-foreground">ZERODHA AUTHENTICATION</h3>
+          <button 
+            onClick={handleRecheckToken}
+            disabled={isChecking}
+            className="px-3 py-1 rounded text-xs font-mono bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-50"
+          >
+            {isChecking ? 'CHECKING...' : 'RECHECK TOKEN'}
+          </button>
+        </div>
+        
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div>
+            <div className="text-xs text-muted-foreground mb-1">Credentials</div>
+            <div className={`text-lg font-mono font-bold ${zerodhaStatus?.configured ? 'text-green-400' : 'text-red-400'}`}>
+              {zerodhaStatus?.configured ? 'CONFIGURED' : 'NOT SET'}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground mb-1">Token Status</div>
+            <div className={`text-lg font-mono font-bold ${
+              zerodhaStatus?.token_valid === true ? 'text-green-400' : 
+              zerodhaStatus?.token_valid === false ? 'text-red-400' : 'text-gray-400'
+            }`}>
+              {zerodhaStatus?.token_valid === true ? 'VALID' : 
+               zerodhaStatus?.token_valid === false ? 'INVALID' : 'UNKNOWN'}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground mb-1">Last Check</div>
+            <div className="text-sm font-mono">
+              {zerodhaStatus?.last_check ? zerodhaStatus.last_check.substring(11, 19) : 'Never'}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground mb-1">Last Successful Fetch</div>
+            <div className="text-sm font-mono">
+              {zerodhaStatus?.last_successful_fetch ? zerodhaStatus.last_successful_fetch.substring(11, 19) : 'Never'}
+            </div>
+          </div>
+        </div>
+        
+        {zerodhaStatus?.error && (
+          <div className="mt-4 p-3 rounded bg-red-500/10 border border-red-500/30">
+            <div className="text-xs text-red-400 font-mono mb-1">ERROR:</div>
+            <div className="text-sm text-red-400">{zerodhaStatus.error}</div>
+          </div>
+        )}
+        
+        {zerodhaStatus?.user_id && (
+          <div className="mt-4 text-sm text-green-400 font-mono">
+            Connected as: {zerodhaStatus.user_id}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="terminal-panel p-6">
-          <h3 className="font-mono text-sm text-muted-foreground mb-4">DATA CONFIGURATION</h3>
+          <h3 className="font-mono text-sm text-muted-foreground mb-4">OPERATING MODE</h3>
           <div className="space-y-4">
             <div className="flex justify-between items-center py-2 border-b border-border/30">
-              <span className="text-sm">Demo Mode</span>
-              <span className={`px-2 py-1 rounded text-xs font-mono ${
+              <span className="text-sm">Current Mode</span>
+              <span className={`px-3 py-1 rounded text-sm font-mono font-bold ${
                 config?.demo_mode ? 'bg-amber-500/20 text-amber-400' : 'bg-green-500/20 text-green-400'
               }`}>
-                {config?.demo_mode ? 'ENABLED' : 'DISABLED'}
+                {config?.demo_mode ? 'DEMO' : 'LIVE'}
               </span>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-border/30">
@@ -880,16 +1187,12 @@ function SettingsPage({ health }) {
               <span className="font-mono text-sm">{config?.data_provider || 'N/A'}</span>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-border/30">
-              <span className="text-sm">Zerodha Configured</span>
-              <span className={`px-2 py-1 rounded text-xs font-mono ${
-                config?.zerodha_configured ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
-              }`}>
-                {config?.zerodha_configured ? 'YES' : 'NO'}
-              </span>
-            </div>
-            <div className="flex justify-between items-center py-2">
               <span className="text-sm">Universe Size</span>
               <span className="font-mono text-sm">{config?.universe_size || 0} symbols</span>
+            </div>
+            <div className="flex justify-between items-center py-2">
+              <span className="text-sm">Data Source Used</span>
+              <span className="font-mono text-sm">{debugStatus?.engine?.data_source_used || 'N/A'}</span>
             </div>
           </div>
         </div>
@@ -898,30 +1201,39 @@ function SettingsPage({ health }) {
           <h3 className="font-mono text-sm text-muted-foreground mb-4">ENGINE STATUS</h3>
           <div className="space-y-4">
             <div className="flex justify-between items-center py-2 border-b border-border/30">
-              <span className="text-sm">Health Status</span>
+              <span className="text-sm">Last Run Status</span>
               <span className={`px-2 py-1 rounded text-xs font-mono ${
-                health?.status === 'ok' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                debugStatus?.engine?.last_run_status === 'success' ? 'bg-green-500/20 text-green-400' : 
+                debugStatus?.engine?.last_run_status === 'error' ? 'bg-red-500/20 text-red-400' :
+                'bg-gray-500/20 text-gray-400'
               }`}>
-                {health?.status?.toUpperCase() || 'UNKNOWN'}
-              </span>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b border-border/30">
-              <span className="text-sm">Last Engine Run</span>
-              <span className="font-mono text-sm text-muted-foreground">
-                {debugStatus?.engine?.last_run || 'Never'}
+                {debugStatus?.engine?.last_run_status?.toUpperCase() || 'NEVER_RUN'}
               </span>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-border/30">
               <span className="text-sm">Signals Generated</span>
               <span className="font-mono text-sm">{debugStatus?.data?.signals_count || 0}</span>
             </div>
-            <div className="flex justify-between items-center py-2">
+            <div className="flex justify-between items-center py-2 border-b border-border/30">
               <span className="text-sm">Ranked Signals</span>
               <span className="font-mono text-sm">{debugStatus?.data?.ranked_count || 0}</span>
+            </div>
+            <div className="flex justify-between items-center py-2">
+              <span className="text-sm">Processed Count</span>
+              <span className="font-mono text-sm">{debugStatus?.engine?.processed_count || 0}</span>
             </div>
           </div>
         </div>
       </div>
+
+      {debugStatus?.engine?.last_error && (
+        <div className="terminal-panel p-6 border-red-500/30">
+          <h3 className="font-mono text-sm text-red-400 mb-4">LAST ERROR</h3>
+          <div className="text-sm text-red-400 font-mono bg-red-500/10 p-4 rounded">
+            {debugStatus.engine.last_error}
+          </div>
+        </div>
+      )}
 
       <div className="terminal-panel p-6">
         <h3 className="font-mono text-sm text-muted-foreground mb-4">API ROUTES STATUS</h3>
@@ -936,12 +1248,13 @@ function SettingsPage({ health }) {
       </div>
 
       <div className="terminal-panel p-6 border-amber-500/30">
-        <h3 className="font-mono text-sm text-amber-400 mb-4">⚠ ENVIRONMENT NOTES</h3>
+        <h3 className="font-mono text-sm text-amber-400 mb-4">⚠ ENVIRONMENT CONFIGURATION</h3>
         <ul className="space-y-2 text-sm text-muted-foreground">
-          <li>• Zerodha credentials are stored securely in environment variables</li>
-          <li>• Access tokens expire daily and need to be refreshed</li>
-          <li>• Demo mode uses sample data for development/testing</li>
-          <li>• Set DEMO_MODE=false in backend .env for live trading</li>
+          <li>• <strong>DEMO_MODE=true</strong>: Uses sample data (safe for testing)</li>
+          <li>• <strong>DEMO_MODE=false</strong>: Requires valid Zerodha credentials, fails loudly if unavailable</li>
+          <li>• Zerodha access tokens expire daily - refresh via Kite login flow</li>
+          <li>• Use <code className="px-1 py-0.5 bg-black/30 rounded">.env.example</code> as template for configuration</li>
+          <li>• Never commit <code className="px-1 py-0.5 bg-black/30 rounded">.env</code> with real credentials</li>
         </ul>
       </div>
     </div>
@@ -952,10 +1265,11 @@ function SettingsPage({ health }) {
 function App() {
   const [activePage, setActivePage] = useState('dashboard');
   const [isRunning, setIsRunning] = useState(false);
+  const [runError, setRunError] = useState(null);
 
   const { data: health, loading: healthLoading } = useApi('/api/health', { refetchInterval: 30000 });
-  const { data: signals, loading: signalsLoading, refetch: refetchSignals } = useApi('/api/signals', { refetchInterval: 60000 });
-  const { data: rankedSignals, loading: rankedLoading, refetch: refetchRanked } = useApi('/api/signals/ranked', { refetchInterval: 60000 });
+  const { data: signalsData, loading: signalsLoading, refetch: refetchSignals } = useApi('/api/signals', { refetchInterval: 60000 });
+  const { data: rankedData, loading: rankedLoading, refetch: refetchRanked } = useApi('/api/signals/ranked', { refetchInterval: 60000 });
   const { data: universeData, loading: universeLoading } = useApi('/api/universe');
 
   const universe = universeData?.symbols || [];
@@ -963,15 +1277,22 @@ function App() {
 
   const handleRunEngine = async () => {
     setIsRunning(true);
+    setRunError(null);
     try {
       const res = await fetch(`${API_BASE}/api/run`);
       const data = await res.json();
-      console.log('Engine run result:', data);
-      setTimeout(() => {
-        refetchSignals();
-        refetchRanked();
-      }, 1000);
+      
+      if (!res.ok || data.error) {
+        setRunError(data.error || `HTTP ${res.status}`);
+      } else {
+        console.log('Engine run result:', data);
+        setTimeout(() => {
+          refetchSignals();
+          refetchRanked();
+        }, 1000);
+      }
     } catch (e) {
+      setRunError(e.message);
       console.error('Engine run failed:', e);
     } finally {
       setIsRunning(false);
@@ -983,16 +1304,16 @@ function App() {
       case 'dashboard':
         return <DashboardPage 
           health={health} 
-          signals={signals} 
-          rankedSignals={rankedSignals} 
+          signalsData={signalsData} 
+          rankedData={rankedData} 
           universe={universe}
           onRunEngine={handleRunEngine}
           isRunning={isRunning}
         />;
       case 'signals':
-        return <SignalsPage signals={signals} loading={signalsLoading} />;
+        return <SignalsPage signalsData={signalsData} loading={signalsLoading} />;
       case 'ranked':
-        return <RankedPage rankedSignals={rankedSignals} loading={rankedLoading} />;
+        return <RankedPage rankedData={rankedData} loading={rankedLoading} />;
       case 'scanner':
         return <ScannerPage />;
       case 'charts':
@@ -1004,7 +1325,7 @@ function App() {
       case 'settings':
         return <SettingsPage health={health} />;
       default:
-        return <DashboardPage health={health} signals={signals} rankedSignals={rankedSignals} universe={universe} />;
+        return <DashboardPage health={health} signalsData={signalsData} rankedData={rankedData} universe={universe} />;
     }
   };
 
@@ -1021,8 +1342,9 @@ function App() {
         <header className="h-16 flex-shrink-0 border-b border-border/40 bg-card/20 flex items-center justify-between px-6">
           <h1 className="text-sm font-mono text-muted-foreground uppercase">/{activePage}</h1>
           <div className="flex items-center gap-6">
+            <ModeIndicator health={health} />
             <div className="flex items-center gap-2 font-mono text-xs">
-              <span className="text-muted-foreground">ENGINE_STATUS:</span>
+              <span className="text-muted-foreground">ENGINE:</span>
               {healthLoading ? (
                 <span className="text-muted-foreground animate-pulse">CHECKING...</span>
               ) : (
@@ -1037,6 +1359,9 @@ function App() {
 
         <div className="flex-1 overflow-y-auto p-6">
           <div className="max-w-7xl mx-auto animate-slide-in">
+            {runError && (
+              <ErrorBanner error={runError} onDismiss={() => setRunError(null)} />
+            )}
             {renderPage()}
           </div>
         </div>
