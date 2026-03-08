@@ -1,27 +1,32 @@
+import os
 import pandas as pd
 from datetime import datetime, timedelta
 
-# Try to use Zerodha if available, otherwise fall back to sample data
-USE_SAMPLE_DATA = True  # Set to False if you have valid Zerodha credentials
-
-try:
-    from backend.data.zerodha_client import get_kite
-    # Test if we can connect
-    _test_kite = get_kite()
-    USE_SAMPLE_DATA = False
-except Exception:
-    USE_SAMPLE_DATA = True
-
 from backend.data.sample_data import generate_sample_ohlcv
+
+# Determine data mode from environment
+def _use_sample_data() -> bool:
+    """Determine if we should use sample data based on environment."""
+    demo_mode = os.environ.get('DEMO_MODE', 'true').lower() == 'true'
+    if demo_mode:
+        return True
+    
+    # Check if Zerodha is available
+    try:
+        from backend.data.zerodha_client import is_zerodha_available
+        return not is_zerodha_available()
+    except Exception:
+        return True
 
 
 def fetch_daily_candles(instrument_token: int, days: int = 1500, symbol: str = None) -> pd.DataFrame:
     """Fetch daily candles - uses sample data if Zerodha is unavailable."""
     
-    if USE_SAMPLE_DATA:
+    if _use_sample_data():
         return _generate_daily_sample(symbol or str(instrument_token), days)
     
     try:
+        from backend.data.zerodha_client import get_kite
         kite = get_kite()
         to_date = datetime.now()
         from_date = to_date - timedelta(days=days)
@@ -53,10 +58,11 @@ def fetch_daily_candles(instrument_token: int, days: int = 1500, symbol: str = N
 def fetch_4h_candles(instrument_token: int, days: int = 180, symbol: str = None) -> pd.DataFrame:
     """Fetch 4-hour candles - uses sample data if Zerodha is unavailable."""
     
-    if USE_SAMPLE_DATA:
+    if _use_sample_data():
         return generate_sample_ohlcv(symbol or str(instrument_token), periods=days * 6)
     
     try:
+        from backend.data.zerodha_client import get_kite
         kite = get_kite()
         to_date = datetime.now()
         from_date = to_date - timedelta(days=days)
