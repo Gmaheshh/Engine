@@ -8,103 +8,103 @@
       "test_name": "Health Check",
       "success": true,
       "details": "Status: 200, Response type: dict",
-      "timestamp": "2026-03-08T13:50:18.577238"
+      "timestamp": "2026-03-08T14:22:10.047491"
     },
     {
       "test_name": "Health Status Validation",
       "success": true,
       "details": "Status is 'ok'",
-      "timestamp": "2026-03-08T13:50:18.577790"
+      "timestamp": "2026-03-08T14:22:10.048109"
     },
     {
       "test_name": "Universe Endpoint",
       "success": true,
       "details": "Status: 200, Response type: dict",
-      "timestamp": "2026-03-08T13:50:18.683472"
+      "timestamp": "2026-03-08T14:22:10.160369"
     },
     {
       "test_name": "Universe Data Validation",
       "success": true,
       "details": "Count: 206, Symbols: 206 items",
-      "timestamp": "2026-03-08T13:50:18.684010"
+      "timestamp": "2026-03-08T14:22:10.161025"
     },
     {
       "test_name": "Universe Symbol Count",
       "success": true,
       "details": "Exactly 206 symbols as expected",
-      "timestamp": "2026-03-08T13:50:18.684025"
+      "timestamp": "2026-03-08T14:22:10.161042"
     },
     {
       "test_name": "Signals Endpoint",
       "success": true,
       "details": "Status: 200, Response type: list",
-      "timestamp": "2026-03-08T13:50:18.795240"
+      "timestamp": "2026-03-08T14:22:10.266775"
     },
     {
       "test_name": "Signals Structure Validation",
       "success": true,
       "details": "All expected fields present in 1 signals",
-      "timestamp": "2026-03-08T13:50:18.795783"
+      "timestamp": "2026-03-08T14:22:10.267451"
     },
     {
       "test_name": "Ranked Signals Endpoint",
       "success": true,
       "details": "Status: 200, Response type: list",
-      "timestamp": "2026-03-08T13:50:18.961362"
+      "timestamp": "2026-03-08T14:22:10.415302"
     },
     {
       "test_name": "Ranked Signals Score Field",
       "success": true,
       "details": "Score field present in 1 ranked signals",
-      "timestamp": "2026-03-08T13:50:18.961944"
+      "timestamp": "2026-03-08T14:22:10.415949"
     },
     {
       "test_name": "Scanner Endpoint",
       "success": true,
       "details": "Status: 200, Response type: dict",
-      "timestamp": "2026-03-08T13:50:31.795733"
+      "timestamp": "2026-03-08T14:22:25.440710"
     },
     {
       "test_name": "Scanner Response Validation",
       "success": true,
-      "details": "Status: success, Results: 1 items",
-      "timestamp": "2026-03-08T13:50:31.796348"
+      "details": "Status: success, Results: 0 items",
+      "timestamp": "2026-03-08T14:22:25.441359"
     },
     {
       "test_name": "Run Engine Endpoint",
       "success": true,
       "details": "Status: 200, Response type: dict",
-      "timestamp": "2026-03-08T13:50:38.832905"
+      "timestamp": "2026-03-08T14:22:34.936200"
     },
     {
       "test_name": "Engine Run Validation",
       "success": true,
-      "details": "Status: success, Signals: 1, Ranked: 1",
-      "timestamp": "2026-03-08T13:50:38.833523"
+      "details": "Status: success, Signals: 0, Ranked: 0",
+      "timestamp": "2026-03-08T14:22:34.936831"
     },
     {
       "test_name": "Debug Endpoint (RELIANCE)",
       "success": true,
       "details": "Status: 200, Response type: list",
-      "timestamp": "2026-03-08T13:50:39.370702"
+      "timestamp": "2026-03-08T14:22:35.468120"
     },
     {
       "test_name": "Debug Data Validation",
       "success": true,
       "details": "Debug data with 10 rows for RELIANCE",
-      "timestamp": "2026-03-08T13:50:39.371408"
+      "timestamp": "2026-03-08T14:22:35.468778"
     },
     {
       "test_name": "Debug Summary Endpoint (RELIANCE)",
       "success": true,
       "details": "Status: 200, Response type: dict",
-      "timestamp": "2026-03-08T13:50:39.852890"
+      "timestamp": "2026-03-08T14:22:35.960455"
     },
     {
       "test_name": "Debug Summary Validation",
       "success": true,
       "details": "Summary for RELIANCE, VWLM: False, VB: False",
-      "timestamp": "2026-03-08T13:50:39.853479"
+      "timestamp": "2026-03-08T14:22:35.961104"
     }
   ]
 }
