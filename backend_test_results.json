@@ -1,140 +1,170 @@
 {
-  "total_tests": 22,
-  "passed_tests": 20,
-  "failed_tests": 2,
-  "success_rate": 90.9090909090909,
+  "total_tests": 27,
+  "passed_tests": 27,
+  "failed_tests": 0,
+  "success_rate": 100.0,
   "test_results": [
     {
       "test_name": "Health Check with Meta",
       "success": true,
       "details": "Status: 200, Response type: dict",
-      "timestamp": "2026-03-08T15:12:49.614838"
+      "timestamp": "2026-03-08T15:15:01.306914"
     },
     {
       "test_name": "Health Meta Validation",
       "success": true,
       "details": "Mode: live, Data Source: system, Token Valid: True",
-      "timestamp": "2026-03-08T15:12:49.615433"
+      "timestamp": "2026-03-08T15:15:01.307505"
     },
     {
       "test_name": "Zerodha Status Endpoint",
       "success": true,
       "details": "Status: 200, Response type: dict",
-      "timestamp": "2026-03-08T15:12:50.005741"
+      "timestamp": "2026-03-08T15:15:01.813005"
     },
     {
       "test_name": "Zerodha Status Meta",
       "success": true,
       "details": "Meta data_source: zerodha_auth_check",
-      "timestamp": "2026-03-08T15:12:50.006368"
+      "timestamp": "2026-03-08T15:15:01.813590"
     },
     {
       "test_name": "Zerodha Auth Details",
       "success": true,
       "details": "Configured: True, Valid: True, User: XEW066",
-      "timestamp": "2026-03-08T15:12:50.006389"
+      "timestamp": "2026-03-08T15:15:01.813609"
     },
     {
       "test_name": "Signals Endpoint with Meta",
-      "success": false,
-      "details": "Expected [200, 503], got 500",
-      "timestamp": "2026-03-08T15:12:57.443616"
+      "success": true,
+      "details": "Status: 500, Response type: dict",
+      "timestamp": "2026-03-08T15:15:09.874295"
+    },
+    {
+      "test_name": "Signals Meta Data Source",
+      "success": true,
+      "details": "Data source: none",
+      "timestamp": "2026-03-08T15:15:09.874880"
+    },
+    {
+      "test_name": "Signals Data Source Valid",
+      "success": true,
+      "details": "Valid data source: none",
+      "timestamp": "2026-03-08T15:15:09.874898"
+    },
+    {
+      "test_name": "Signals Error Handling",
+      "success": true,
+      "details": "Proper error: No columns to parse from file",
+      "timestamp": "2026-03-08T15:15:09.874904"
     },
     {
       "test_name": "Ranked Signals with Meta",
-      "success": false,
-      "details": "Expected [200, 503], got 500",
-      "timestamp": "2026-03-08T15:13:06.038635"
+      "success": true,
+      "details": "Status: 500, Response type: dict",
+      "timestamp": "2026-03-08T15:15:19.606851"
+    },
+    {
+      "test_name": "Ranked Meta Data Source",
+      "success": true,
+      "details": "Data source: none",
+      "timestamp": "2026-03-08T15:15:19.607468"
+    },
+    {
+      "test_name": "Ranked Error Handling",
+      "success": true,
+      "details": "Proper error: No columns to parse from file",
+      "timestamp": "2026-03-08T15:15:19.607484"
     },
     {
       "test_name": "Debug Symbol with Meta",
       "success": true,
       "details": "Status: 200, Response type: dict",
-      "timestamp": "2026-03-08T15:13:06.593167"
+      "timestamp": "2026-03-08T15:15:20.139036"
     },
     {
       "test_name": "Debug Meta Data Source",
       "success": true,
       "details": "Data source: zerodha_live",
-      "timestamp": "2026-03-08T15:13:06.593857"
+      "timestamp": "2026-03-08T15:15:20.139683"
     },
     {
       "test_name": "Debug Data Source Valid",
       "success": true,
       "details": "Valid data source: zerodha_live",
-      "timestamp": "2026-03-08T15:13:06.593873"
+      "timestamp": "2026-03-08T15:15:20.139700"
     },
     {
       "test_name": "Debug Status Endpoint",
       "success": true,
       "details": "Status: 200, Response type: dict",
-      "timestamp": "2026-03-08T15:13:06.987524"
+      "timestamp": "2026-03-08T15:15:20.544508"
     },
     {
       "test_name": "Debug Status Meta",
       "success": true,
       "details": "Meta data_source: system_state",
-      "timestamp": "2026-03-08T15:13:06.988202"
+      "timestamp": "2026-03-08T15:15:20.545136"
     },
     {
       "test_name": "Engine Data Source Used",
       "success": true,
       "details": "Engine data_source_used: zerodha_live",
-      "timestamp": "2026-03-08T15:13:06.988231"
+      "timestamp": "2026-03-08T15:15:20.545152"
     },
     {
       "test_name": "Scanner with Meta",
       "success": true,
       "details": "Status: 200, Response type: dict",
-      "timestamp": "2026-03-08T15:13:19.296324"
+      "timestamp": "2026-03-08T15:15:33.592711"
     },
     {
       "test_name": "Scan Meta Fields",
       "success": true,
       "details": "Mode: live, Data source: zerodha_live",
-      "timestamp": "2026-03-08T15:13:19.296957"
+      "timestamp": "2026-03-08T15:15:33.593329"
     },
     {
       "test_name": "Export Signals Error Handling",
       "success": true,
       "details": "404 with error message: No signals data available. Run the engine first.",
-      "timestamp": "2026-03-08T15:13:19.434176"
+      "timestamp": "2026-03-08T15:15:33.781932"
     },
     {
       "test_name": "Export Ranked Error Handling",
       "success": true,
       "details": "404 with error message: No ranked signals data available. Run the engine first.",
-      "timestamp": "2026-03-08T15:13:19.533215"
+      "timestamp": "2026-03-08T15:15:33.896545"
     },
     {
       "test_name": "Universe Endpoint",
       "success": true,
       "details": "Status: 200, Response type: dict",
-      "timestamp": "2026-03-08T15:13:19.634868"
+      "timestamp": "2026-03-08T15:15:34.015533"
     },
     {
       "test_name": "Universe Data Validation",
       "success": true,
       "details": "Count: 206, Symbols: 206 items",
-      "timestamp": "2026-03-08T15:13:19.635502"
+      "timestamp": "2026-03-08T15:15:34.016244"
     },
     {
       "test_name": "Universe Symbol Count",
       "success": true,
       "details": "Exactly 206 symbols as expected",
-      "timestamp": "2026-03-08T15:13:19.635518"
+      "timestamp": "2026-03-08T15:15:34.016262"
     },
     {
       "test_name": "Run Engine Endpoint",
       "success": true,
       "details": "Status: 200, Response type: dict",
-      "timestamp": "2026-03-08T15:13:27.350718"
+      "timestamp": "2026-03-08T15:15:42.725046"
     },
     {
       "test_name": "Engine Run Validation",
       "success": true,
       "details": "Status: success, Signals: 0, Ranked: 0",
-      "timestamp": "2026-03-08T15:13:27.351402"
+      "timestamp": "2026-03-08T15:15:42.725783"
     }
   ]
 }
