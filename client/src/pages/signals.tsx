@@ -1,109 +1,152 @@
-import { useState, useMemo } from "react";
-import { useSignals } from "@/hooks/use-trading";
+import { useMemo, useState } from "react";
+import { Download, Filter, Search } from "lucide-react";
+
 import { LayoutShell } from "@/components/layout-shell";
 import { SignalsTable } from "@/components/signals-table";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Download, Filter } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { useSignals } from "@/hooks/use-trading";
+
+function toSignalNumber(value: unknown): number {
+  if (typeof value === "boolean") return value ? 1 : 0;
+  if (typeof value === "number") return value;
+  return 0;
+}
+
+function csvEscape(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  const stringValue = String(value);
+  if (
+    stringValue.includes(",") ||
+    stringValue.includes('"') ||
+    stringValue.includes("\n")
+  ) {
+    return `"${stringValue.replace(/"/g, '""')}"`;
+  }
+  return stringValue;
+}
 
 export default function Signals() {
-  const { data: signals, isLoading } = useSignals();
+  const { data: signals = [], isLoading } = useSignals();
   const [search, setSearch] = useState("");
   const [filterActive, setFilterActive] = useState(false);
 
   const filteredSignals = useMemo(() => {
-    if (!signals) return [];
     let result = signals;
-    
-    if (search) {
-      const q = search.toLowerCase();
-      result = result.filter(s => s.tradingsymbol?.toLowerCase().includes(q));
+
+    const trimmedSearch = search.trim().toLowerCase();
+    if (trimmedSearch) {
+      result = result.filter((signal) =>
+        signal.tradingsymbol?.toLowerCase().includes(trimmedSearch),
+      );
     }
-    
+
     if (filterActive) {
-      result = result.filter(s => s.signal !== 0);
+      result = result.filter((signal) => toSignalNumber(signal.signal) !== 0);
     }
-    
+
     return result;
   }, [signals, search, filterActive]);
 
   const handleExport = () => {
-    if (!signals || signals.length === 0) return;
-    
-    // Simple CSV generation
-    const headers = ["ts", "tradingsymbol", "strategy", "close", "ema_fast", "ema_slow", "adx", "atr", "rsi", "signal"];
+    if (filteredSignals.length === 0) return;
+
+    const headers = [
+      "ts",
+      "tradingsymbol",
+      "strategy",
+      "close",
+      "ema_fast",
+      "ema_slow",
+      "adx",
+      "atr",
+      "rsi",
+      "signal",
+    ] as const;
+
     const csvContent = [
       headers.join(","),
-      ...filteredSignals.map(s => 
-        headers.map(h => {
-          const val = s[h as keyof typeof s];
-          return val === null || val === undefined ? "" : String(val);
-        }).join(",")
-      )
+      ...filteredSignals.map((signal) =>
+        headers
+          .map((header) => csvEscape(signal[header]))
+          .join(","),
+      ),
     ].join("\n");
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
+    const blob = new Blob([csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+
     const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `signals_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `signals_${new Date().toISOString().split("T")[0]}.csv`;
+    link.style.display = "none";
+
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
   };
 
   return (
     <LayoutShell>
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-6 animate-slide-in">
+      <div className="mb-6 flex animate-slide-in flex-col items-start justify-between gap-4 md:flex-row md:items-end">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">Live Signals</h2>
-          <p className="text-muted-foreground font-mono text-sm mt-1">Raw output from all configured strategies</p>
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">
+            Live Signals
+          </h2>
+          <p className="mt-1 font-mono text-sm text-muted-foreground">
+            Raw output from all configured strategies
+          </p>
         </div>
-        
+
         <div className="flex flex-wrap gap-3">
           <div className="relative w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search symbol..." 
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search symbol..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 bg-card border-border/50 font-mono text-sm h-9"
+              className="h-9 border-border/50 bg-card pl-9 font-mono text-sm"
             />
           </div>
-          
-          <Button 
-            variant={filterActive ? "default" : "outline"} 
+
+          <Button
+            variant={filterActive ? "default" : "outline"}
             size="sm"
-            onClick={() => setFilterActive(!filterActive)}
-            className={`font-mono text-xs h-9 ${filterActive ? 'bg-primary text-primary-foreground' : 'bg-card border-border/50'}`}
+            onClick={() => setFilterActive((prev) => !prev)}
+            className={`h-9 font-mono text-xs ${
+              filterActive
+                ? "bg-primary text-primary-foreground"
+                : "border-border/50 bg-card"
+            }`}
           >
-            <Filter className="w-3.5 h-3.5 mr-2" />
+            <Filter className="mr-2 h-3.5 w-3.5" />
             ACTIVE_ONLY
           </Button>
-          
-          <Button 
-            variant="outline" 
+
+          <Button
+            variant="outline"
             size="sm"
             onClick={handleExport}
-            disabled={!signals || signals.length === 0}
-            className="font-mono text-xs h-9 bg-card border-border/50 hover:text-foreground"
+            disabled={filteredSignals.length === 0}
+            className="h-9 border-border/50 bg-card font-mono text-xs hover:text-foreground"
           >
-            <Download className="w-3.5 h-3.5 mr-2" />
+            <Download className="mr-2 h-3.5 w-3.5" />
             EXPORT_CSV
           </Button>
         </div>
       </div>
 
       <div className="animate-slide-in stagger-2">
-        <SignalsTable 
-          signals={filteredSignals} 
-          isLoading={isLoading} 
-        />
-        
-        {!isLoading && filteredSignals.length > 0 && (
-          <div className="mt-4 text-right text-xs font-mono text-muted-foreground">
-            Showing {filteredSignals.length} of {signals?.length || 0} signals
+        <SignalsTable signals={filteredSignals} isLoading={isLoading} />
+
+        {!isLoading && (
+          <div className="mt-4 text-right font-mono text-xs text-muted-foreground">
+            Showing {filteredSignals.length} of {signals.length} signals
           </div>
         )}
       </div>
