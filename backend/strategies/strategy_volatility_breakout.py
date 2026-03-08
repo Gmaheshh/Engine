@@ -4,7 +4,7 @@ from backend.indicators.atr import atr
 from backend.indicators.adx import adx
 from backend.indicators.rsi import rsi
 from backend.indicators.ema import ema
-from backend.indicators.rolling_stats import rolling_mean
+from backend.indicators.rolling_stats import rolling_mean, rolling_median
 
 
 def run_volatility_breakout(df: pd.DataFrame) -> pd.DataFrame:
@@ -17,6 +17,9 @@ def run_volatility_breakout(df: pd.DataFrame) -> pd.DataFrame:
     out["ema_fast"] = ema(out["close"], 18)
     out["ema_slow"] = ema(out["close"], 42)
     out["vol_ma_20"] = rolling_mean(out["volume"], 20)
+    
+    # Add median_42 for debug endpoint
+    out["median_42"] = rolling_median(out["close"], 42)
 
     out["hh_20"] = out["high"].shift(1).rolling(20).max()
 
