@@ -11,11 +11,17 @@ interface SignalsTableProps {
 }
 
 function formatNumber(num: number | null | undefined, decimals = 2) {
-  if (num === null || num === undefined) return "-";
+  if (num === null || num === undefined || !Number.isFinite(num)) return "-";
   return new Intl.NumberFormat('en-US', {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   }).format(num);
+}
+
+function safeNumber(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  return null;
 }
 
 export function SignalsTable({ signals, isLoading, limit, showScore = false }: SignalsTableProps) {
@@ -37,7 +43,7 @@ export function SignalsTable({ signals, isLoading, limit, showScore = false }: S
     return (
       <div className="terminal-panel p-12 text-center border-dashed">
         <div className="text-muted-foreground font-mono mb-2">NO_DATA_FOUND</div>
-        <p className="text-sm text-muted-foreground/60">The universe query returned empty results.</p>
+        <p className="text-sm text-muted-foreground/60">The universe query returned empty results. Try running the engine first.</p>
       </div>
     );
   }
@@ -62,10 +68,11 @@ export function SignalsTable({ signals, isLoading, limit, showScore = false }: S
         <tbody className="font-mono divide-y divide-border/20">
           {displaySignals.map((signal, idx) => {
             const isRanked = 'score' in signal;
-            const score = isRanked ? (signal as RankedSignal).score : undefined;
+            const score = isRanked ? safeNumber((signal as RankedSignal).score) : null;
+            const scoreVal = score ?? 0;
             
             return (
-              <tr key={`${signal.tradingsymbol}-${idx}`} className="data-table-row hover:bg-white/[0.03]">
+              <tr key={`${signal.tradingsymbol ?? 'unknown'}-${idx}`} className="data-table-row hover:bg-white/[0.03]">
                 <td className="px-4 py-3 font-bold text-foreground">
                   {signal.tradingsymbol || "-"}
                 </td>
@@ -75,8 +82,8 @@ export function SignalsTable({ signals, isLoading, limit, showScore = false }: S
                 {showScore && (
                   <td className="px-4 py-3 text-right">
                     <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                      (score || 0) > 70 ? 'bg-green-500/20 text-green-400' :
-                      (score || 0) > 40 ? 'bg-amber-500/20 text-amber-400' :
+                      scoreVal > 70 ? 'bg-green-500/20 text-green-400' :
+                      scoreVal > 40 ? 'bg-amber-500/20 text-amber-400' :
                       'bg-white/5 text-muted-foreground'
                     }`}>
                       {formatNumber(score, 1)}
@@ -87,22 +94,25 @@ export function SignalsTable({ signals, isLoading, limit, showScore = false }: S
                   <SignalBadge signal={signal.signal} />
                 </td>
                 <td className="px-4 py-3 text-right font-number">
-                  {formatNumber(signal.close)}
+                  {formatNumber(safeNumber(signal.close))}
                 </td>
                 <td className="px-4 py-3 text-right font-number text-muted-foreground">
-                  {formatNumber(signal.rsi)}
+                  {formatNumber(safeNumber(signal.rsi))}
                 </td>
                 <td className="px-4 py-3 text-right font-number text-muted-foreground">
-                  {formatNumber(signal.adx)}
+                  {formatNumber(safeNumber(signal.adx))}
                 </td>
                 <td className="px-4 py-3 text-right font-number text-muted-foreground">
-                  {formatNumber(signal.atr)}
+                  {formatNumber(safeNumber(signal.atr))}
                 </td>
                 <td className="px-4 py-3 text-right font-number text-muted-foreground text-xs">
-                  {formatNumber(signal.ema_fast, 1)} / {formatNumber(signal.ema_slow, 1)}
+                  {formatNumber(safeNumber(signal.ema_fast), 1)} / {formatNumber(safeNumber(signal.ema_slow), 1)}
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <Link href={`/debug?symbol=${signal.tradingsymbol}`} className="inline-flex items-center justify-center w-8 h-8 rounded bg-white/5 hover:bg-primary/20 hover:text-primary transition-colors cursor-pointer text-muted-foreground">
+                  <Link 
+                    href={`/debug?symbol=${encodeURIComponent(signal.tradingsymbol || '')}`} 
+                    className="inline-flex items-center justify-center w-8 h-8 rounded bg-white/5 hover:bg-primary/20 hover:text-primary transition-colors cursor-pointer text-muted-foreground"
+                  >
                     <BugPlay className="w-4 h-4" />
                   </Link>
                 </td>

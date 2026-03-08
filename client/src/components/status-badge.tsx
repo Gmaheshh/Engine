@@ -29,9 +29,28 @@ export function StatusBadge({ variant, children, className = "" }: StatusBadgePr
   );
 }
 
-export function SignalBadge({ signal }: { signal?: number | null }) {
-  if (signal === 1) return <StatusBadge variant="long">LONG</StatusBadge>;
-  if (signal === -1) return <StatusBadge variant="short">SHORT</StatusBadge>;
-  if (signal === 0) return <StatusBadge variant="flat">FLAT</StatusBadge>;
-  return <span className="text-muted-foreground">-</span>;
+/**
+ * Convert signal value to normalized number.
+ * Handles: boolean (true/false), number (1, -1, 0), null/undefined
+ */
+function normalizeSignal(signal: number | boolean | null | undefined): number {
+  if (signal === null || signal === undefined) return 0;
+  if (typeof signal === 'boolean') return signal ? 1 : 0;
+  if (typeof signal === 'number') {
+    if (!Number.isFinite(signal)) return 0;
+    return signal;
+  }
+  return 0;
+}
+
+export function SignalBadge({ signal }: { signal?: number | boolean | null }) {
+  const normalizedSignal = normalizeSignal(signal);
+  
+  if (normalizedSignal === 1 || normalizedSignal > 0) {
+    return <StatusBadge variant="long">LONG</StatusBadge>;
+  }
+  if (normalizedSignal === -1 || normalizedSignal < 0) {
+    return <StatusBadge variant="short">SHORT</StatusBadge>;
+  }
+  return <StatusBadge variant="flat">FLAT</StatusBadge>;
 }
