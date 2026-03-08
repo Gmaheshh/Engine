@@ -1,5 +1,11 @@
 import sys
 import os
+from pathlib import Path
+from datetime import datetime, timezone
+
+# Load environment variables from .env file
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).parent / '.env')
 
 # Ensure the parent directory is in path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -7,7 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import math
 import pandas as pd
 import numpy as np
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -29,6 +35,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Global state for debug/status tracking
+class EngineState:
+    last_run: str = None
+    last_run_status: str = "never_run"
+    processed_count: int = 0
+    error_count: int = 0
+    signals_generated: int = 0
+    last_error: str = None
+
+engine_state = EngineState()
 
 
 def clean_value(v):
@@ -73,7 +90,103 @@ def convert_signal_to_int(df: pd.DataFrame) -> pd.DataFrame:
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok"}
+    """Health check endpoint."""
+    demo_mode = os.environ.get('DEMO_MODE', 'true').lower() == 'true'
+    data_provider = os.environ.get('DATA_PROVIDER', 'sample')
+    
+    return {
+        "status": "ok",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "demo_mode": demo_mode,
+        "data_provider": data_provider,
+        "engine_status": engine_state.last_run_status,
+        "last_run": engine_state.last_run
+    }
+
+
+@app.get("/api/debug/status")
+def debug_status():
+    """Get detailed debug status about the engine."""
+    signals_path = OUTPUT_DIR / "signals_latest.csv"
+    ranked_path = OUTPUT_DIR / "ranked_signals.csv"
+    
+    signals_count = 0
+    ranked_count = 0
+    
+    try:
+        if signals_path.exists() and signals_path.stat().st_size > 1:
+            df = pd.read_csv(signals_path)
+            signals_count = len(df)
+    except Exception:
+        pass
+    
+    try:
+        if ranked_path.exists() and ranked_path.stat().st_size > 1:
+            df = pd.read_csv(ranked_path)
+            ranked_count = len(df)
+    except Exception:
+        pass
+    
+    return {
+        "status": "ok",
+        "engine": {
+            "last_run": engine_state.last_run,
+            "last_run_status": engine_state.last_run_status,
+            "processed_count": engine_state.processed_count,
+            "error_count": engine_state.error_count,
+            "signals_generated": engine_state.signals_generated,
+            "last_error": engine_state.last_error
+        },
+        "data": {
+            "signals_file_exists": signals_path.exists(),
+            "signals_count": signals_count,
+            "ranked_file_exists": ranked_path.exists(),
+            "ranked_count": ranked_count
+        },
+        "config": {
+            "demo_mode": os.environ.get('DEMO_MODE', 'true').lower() == 'true',
+            "data_provider": os.environ.get('DATA_PROVIDER', 'sample'),
+            "universe_size": len(TEST_SYMBOLS)
+        },
+        "routes": {
+            "/api/health": "ok",
+            "/api/signals": "ok",
+            "/api/signals/ranked": "ok",
+            "/api/universe": "ok",
+            "/api/scan": "ok",
+            "/api/run": "ok",
+            "/api/debug/{symbol}": "ok",
+            "/api/debug/{symbol}/summary": "ok"
+        }
+    }
+
+
+@app.get("/api/debug/signals")
+def debug_signals():
+    """Get raw signals data for debugging."""
+    path = OUTPUT_DIR / "signals_latest.csv"
+    
+    if not path.exists() or path.stat().st_size <= 1:
+        return {
+            "status": "no_data",
+            "message": "No signals file found. Run the engine first.",
+            "signals": []
+        }
+    
+    try:
+        df = pd.read_csv(path)
+        return {
+            "status": "ok",
+            "count": len(df),
+            "columns": list(df.columns),
+            "signals": clean_records(df.head(20))
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e),
+            "signals": []
+        }
 
 
 @app.get("/api/universe")
@@ -95,12 +208,32 @@ def refresh_instruments():
 
 @app.get("/api/run")
 def run_signals():
-    signals, ranked = run_engine(TEST_SYMBOLS[:20])  # Limit for faster response
-    return {
-        "status": "success",
-        "signals_count": int(len(signals)),
-        "ranked_count": int(len(ranked)),
-    }
+    """Run the signal engine on the universe."""
+    global engine_state
+    
+    try:
+        engine_state.last_run = datetime.now(timezone.utc).isoformat()
+        engine_state.last_run_status = "running"
+        engine_state.error_count = 0
+        
+        symbols_to_process = TEST_SYMBOLS[:20]  # Limit for faster response
+        engine_state.processed_count = len(symbols_to_process)
+        
+        signals, ranked = run_engine(symbols_to_process)
+        
+        engine_state.signals_generated = len(signals) if not signals.empty else 0
+        engine_state.last_run_status = "success"
+        engine_state.last_error = None
+        
+        return {
+            "status": "success",
+            "signals_count": int(len(signals)),
+            "ranked_count": int(len(ranked)),
+        }
+    except Exception as e:
+        engine_state.last_run_status = "error"
+        engine_state.last_error = str(e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/signals")
@@ -312,3 +445,20 @@ def scan_market(top_n: int = 10):
         "returned_count": int(len(out)),
         "results": clean_records(out)
     })
+
+
+@app.get("/api/config")
+def get_config():
+    """Get current configuration (no secrets exposed)."""
+    return {
+        "demo_mode": os.environ.get('DEMO_MODE', 'true').lower() == 'true',
+        "data_provider": os.environ.get('DATA_PROVIDER', 'sample'),
+        "zerodha_configured": bool(os.environ.get('ZERODHA_API_KEY')),
+        "universe_size": len(TEST_SYMBOLS),
+        "output_dir": str(OUTPUT_DIR)
+    }
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8001)
