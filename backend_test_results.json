@@ -1,0 +1,110 @@
+{
+  "total_tests": 17,
+  "passed_tests": 17,
+  "failed_tests": 0,
+  "success_rate": 100.0,
+  "test_results": [
+    {
+      "test_name": "Health Check",
+      "success": true,
+      "details": "Status: 200, Response type: dict",
+      "timestamp": "2026-03-08T13:50:18.577238"
+    },
+    {
+      "test_name": "Health Status Validation",
+      "success": true,
+      "details": "Status is 'ok'",
+      "timestamp": "2026-03-08T13:50:18.577790"
+    },
+    {
+      "test_name": "Universe Endpoint",
+      "success": true,
+      "details": "Status: 200, Response type: dict",
+      "timestamp": "2026-03-08T13:50:18.683472"
+    },
+    {
+      "test_name": "Universe Data Validation",
+      "success": true,
+      "details": "Count: 206, Symbols: 206 items",
+      "timestamp": "2026-03-08T13:50:18.684010"
+    },
+    {
+      "test_name": "Universe Symbol Count",
+      "success": true,
+      "details": "Exactly 206 symbols as expected",
+      "timestamp": "2026-03-08T13:50:18.684025"
+    },
+    {
+      "test_name": "Signals Endpoint",
+      "success": true,
+      "details": "Status: 200, Response type: list",
+      "timestamp": "2026-03-08T13:50:18.795240"
+    },
+    {
+      "test_name": "Signals Structure Validation",
+      "success": true,
+      "details": "All expected fields present in 1 signals",
+      "timestamp": "2026-03-08T13:50:18.795783"
+    },
+    {
+      "test_name": "Ranked Signals Endpoint",
+      "success": true,
+      "details": "Status: 200, Response type: list",
+      "timestamp": "2026-03-08T13:50:18.961362"
+    },
+    {
+      "test_name": "Ranked Signals Score Field",
+      "success": true,
+      "details": "Score field present in 1 ranked signals",
+      "timestamp": "2026-03-08T13:50:18.961944"
+    },
+    {
+      "test_name": "Scanner Endpoint",
+      "success": true,
+      "details": "Status: 200, Response type: dict",
+      "timestamp": "2026-03-08T13:50:31.795733"
+    },
+    {
+      "test_name": "Scanner Response Validation",
+      "success": true,
+      "details": "Status: success, Results: 1 items",
+      "timestamp": "2026-03-08T13:50:31.796348"
+    },
+    {
+      "test_name": "Run Engine Endpoint",
+      "success": true,
+      "details": "Status: 200, Response type: dict",
+      "timestamp": "2026-03-08T13:50:38.832905"
+    },
+    {
+      "test_name": "Engine Run Validation",
+      "success": true,
+      "details": "Status: success, Signals: 1, Ranked: 1",
+      "timestamp": "2026-03-08T13:50:38.833523"
+    },
+    {
+      "test_name": "Debug Endpoint (RELIANCE)",
+      "success": true,
+      "details": "Status: 200, Response type: list",
+      "timestamp": "2026-03-08T13:50:39.370702"
+    },
+    {
+      "test_name": "Debug Data Validation",
+      "success": true,
+      "details": "Debug data with 10 rows for RELIANCE",
+      "timestamp": "2026-03-08T13:50:39.371408"
+    },
+    {
+      "test_name": "Debug Summary Endpoint (RELIANCE)",
+      "success": true,
+      "details": "Status: 200, Response type: dict",
+      "timestamp": "2026-03-08T13:50:39.852890"
+    },
+    {
+      "test_name": "Debug Summary Validation",
+      "success": true,
+      "details": "Summary for RELIANCE, VWLM: False, VB: False",
+      "timestamp": "2026-03-08T13:50:39.853479"
+    }
+  ]
+}
