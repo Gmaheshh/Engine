@@ -547,22 +547,28 @@ class QuantTradingAPITester:
 
     def run_all_tests(self):
         """Run all backend API tests"""
-        print("🚀 Starting PRA-GATI Backend API Tests")
+        print("🚀 Starting PRA-GATI Backend API Tests - Meta Objects & Data Source Tracking")
         print(f"📡 Testing against: {self.base_url}")
-        print("=" * 60)
+        print("=" * 80)
         
-        # Test all endpoints
-        self.test_health_endpoint()
+        # Test all endpoints with focus on meta objects
+        self.test_health_endpoint_meta()
+        self.test_zerodha_status_endpoint()
+        self.test_signals_endpoint_meta()
+        self.test_ranked_signals_meta()
+        self.test_debug_symbol_meta()
+        self.test_debug_status_meta()
+        self.test_scan_endpoint_meta()
+        self.test_export_signals_csv()
+        self.test_export_ranked_csv()
+        
+        # Legacy tests for basic functionality
+        print("\n📋 Running Legacy Compatibility Tests...")
         self.test_universe_endpoint()
-        self.test_signals_endpoint()
-        self.test_ranked_signals_endpoint()
-        self.test_scan_endpoint()
         self.test_run_endpoint()
-        self.test_debug_endpoint()
-        self.test_debug_summary_endpoint()
         
         # Print summary
-        print("=" * 60)
+        print("=" * 80)
         print(f"📊 Test Results: {self.tests_passed}/{self.tests_run} passed")
         
         if self.tests_passed == self.tests_run:
