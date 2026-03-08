@@ -26,7 +26,7 @@ def clean_value(v):
         if math.isnan(float(v)) or math.isinf(float(v)):
             return None
         return float(v)
-    if isinstance(v, (np.bool_,)):
+    if isinstance(v, (np.bool_, bool)):
         return bool(v)
     return v
 
@@ -36,7 +36,23 @@ def clean_records(df: pd.DataFrame):
         return []
 
     records = df.to_dict(orient="records")
-    return [{k: clean_value(v) for k, v in row.items()} for row in records]
+    cleaned = []
+    for row in records:
+        cleaned_row = {}
+        for k, v in row.items():
+            cleaned_row[k] = clean_value(v)
+        cleaned.append(cleaned_row)
+    return cleaned
+
+
+def convert_signal_to_int(df: pd.DataFrame) -> pd.DataFrame:
+    """Convert boolean signals to integer (1/0) for frontend compatibility."""
+    out = df.copy()
+    if "signal" in out.columns:
+        out["signal"] = out["signal"].apply(lambda x: 1 if bool(x) else 0)
+    if "vb_signal" in out.columns:
+        out["vb_signal"] = out["vb_signal"].apply(lambda x: 1 if bool(x) else 0)
+    return out
 
 
 @app.get("/health")
@@ -63,7 +79,7 @@ def refresh_instruments():
 
 @app.get("/run")
 def run_signals():
-    signals, ranked = run_engine(TEST_SYMBOLS)
+    signals, ranked = run_engine(TEST_SYMBOLS[:20])  # Limit for faster response
     return {
         "status": "success",
         "signals_count": int(len(signals)),
@@ -74,27 +90,41 @@ def run_signals():
 @app.get("/signals")
 def get_signals():
     path = OUTPUT_DIR / "signals_latest.csv"
-    if not path.exists():
-        return JSONResponse(
-            {"error": "No signals file found. Run /run first."},
-            status_code=404
-        )
-
-    df = pd.read_csv(path)
-    return JSONResponse(content=clean_records(df))
+    if not path.exists() or path.stat().st_size <= 1:
+        # Run engine to generate signals if none exist
+        signals, ranked = run_engine(TEST_SYMBOLS[:20])
+        if signals.empty:
+            return JSONResponse(content=[])
+    
+    try:
+        df = pd.read_csv(path)
+        if df.empty:
+            return JSONResponse(content=[])
+        df = convert_signal_to_int(df)
+        return JSONResponse(content=clean_records(df))
+    except Exception as e:
+        print(f"Error reading signals: {e}")
+        return JSONResponse(content=[])
 
 
 @app.get("/signals/ranked")
 def get_ranked_signals():
     path = OUTPUT_DIR / "ranked_signals.csv"
-    if not path.exists():
-        return JSONResponse(
-            {"error": "No ranked signals file found. Run /run first."},
-            status_code=404
-        )
-
-    df = pd.read_csv(path)
-    return JSONResponse(content=clean_records(df))
+    if not path.exists() or path.stat().st_size <= 1:
+        # Run engine to generate signals if none exist
+        signals, ranked = run_engine(TEST_SYMBOLS[:20])
+        if ranked.empty:
+            return JSONResponse(content=[])
+    
+    try:
+        df = pd.read_csv(path)
+        if df.empty:
+            return JSONResponse(content=[])
+        df = convert_signal_to_int(df)
+        return JSONResponse(content=clean_records(df))
+    except Exception as e:
+        print(f"Error reading ranked signals: {e}")
+        return JSONResponse(content=[])
 
 
 @app.get("/debug/{symbol}")
@@ -102,7 +132,7 @@ def debug_symbol(symbol: str):
     symbol = symbol.upper()
 
     token = get_instrument_token(symbol)
-    df = fetch_4h_candles(token, days=90)
+    df = fetch_4h_candles(token, days=90, symbol=symbol)
 
     if df.empty:
         return JSONResponse(
@@ -142,6 +172,7 @@ def debug_symbol(symbol: str):
 
     available_cols = [c for c in cols if c in debug_df.columns]
     out = debug_df[available_cols].tail(10).copy()
+    out = convert_signal_to_int(out)
 
     return JSONResponse(content=clean_records(out))
 
@@ -151,7 +182,7 @@ def debug_symbol_summary(symbol: str):
     symbol = symbol.upper()
 
     token = get_instrument_token(symbol)
-    df = fetch_4h_candles(token, days=90)
+    df = fetch_4h_candles(token, days=90, symbol=symbol)
 
     if df.empty:
         return JSONResponse(
@@ -218,7 +249,9 @@ def debug_symbol_summary(symbol: str):
 
 @app.get("/scan")
 def scan_market(top_n: int = 10):
-    signals, ranked = run_engine(TEST_SYMBOLS)
+    # Use a subset of symbols for faster scanning
+    symbols_to_scan = TEST_SYMBOLS[:min(30, len(TEST_SYMBOLS))]
+    signals, ranked = run_engine(symbols_to_scan)
 
     if ranked.empty:
         return JSONResponse(content={
@@ -229,31 +262,32 @@ def scan_market(top_n: int = 10):
             "results": []
         })
 
-    preferred_cols =[
-    "ts",
-    "tradingsymbol",
-    "strategy",
-    "close",
-    "ema_fast",
-    "ema_slow",
-    "adx",
-    "atr",
-    "rsi",
-    "median_42",
-    "signal",
-    "score",
-    "entry",
-    "sl",
-    "target",
-    "rr",
-    "shares",
-    "position_value",
-    "max_loss_if_sl",
-    "max_profit_if_target",
-] 
+    preferred_cols = [
+        "ts",
+        "tradingsymbol",
+        "strategy",
+        "close",
+        "ema_fast",
+        "ema_slow",
+        "adx",
+        "atr",
+        "rsi",
+        "median_42",
+        "signal",
+        "score",
+        "entry",
+        "sl",
+        "target",
+        "rr",
+        "shares",
+        "position_value",
+        "max_loss_if_sl",
+        "max_profit_if_target",
+    ]
 
     available_cols = [c for c in preferred_cols if c in ranked.columns]
     out = ranked[available_cols].copy().head(top_n)
+    out = convert_signal_to_int(out)
 
     return JSONResponse(content={
         "status": "success",

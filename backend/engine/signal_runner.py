@@ -8,30 +8,7 @@ from backend.data.instruments import get_instrument_token
 from backend.market_regime import fetch_nifty_regime, merge_relative_strength
 from backend.strategies.strategy_volatility_breakout import run_volatility_breakout
 from backend.strategies.strategy_vwlm import run_vwlm
-
-
-def rank_signals(df: pd.DataFrame) -> pd.DataFrame:
-    if df.empty:
-        return df.copy()
-
-    out = df.copy()
-
-    for col in ["adx", "rsi", "atr", "close", "volume"]:
-        if col in out.columns:
-            out[col] = pd.to_numeric(out[col], errors="coerce")
-
-    out["score"] = 0.0
-
-    if "adx" in out.columns:
-        out["score"] += out["adx"].fillna(0) * 0.40
-    if "rsi" in out.columns:
-        out["score"] += out["rsi"].fillna(0) * 0.25
-    if "atr" in out.columns and "close" in out.columns:
-        out["score"] += ((out["atr"] / out["close"]) * 100).fillna(0) * 0.20
-    if "volume" in out.columns:
-        out["score"] += (out["volume"].fillna(0) / 100000) * 0.15
-
-    return out.sort_values("score", ascending=False).reset_index(drop=True)
+from backend.engine.ranking import rank_signals
 
 
 def _latest_signal_row(df: pd.DataFrame) -> pd.DataFrame:
@@ -58,10 +35,10 @@ def _process_symbol(
     rows = []
 
     token = get_instrument_token(symbol)
-    df = fetch_daily_candles(token, days=days)
+    df = fetch_daily_candles(token, days=days, symbol=symbol)
 
     if df.empty or len(df) < 200:
-        print(f"Skipping {symbol}: insufficient data")
+        print(f"Skipping {symbol}: insufficient data ({len(df)} rows)")
         return rows
 
     df = df.copy()
@@ -88,7 +65,7 @@ def _process_symbol(
 
 def run_engine(
     symbols: list[str] | None = None,
-    days: int = 1500,
+    days: int = 500,  # Reduced for faster processing with sample data
     include_vwlm: bool = True,
     include_breakout: bool = True,
 ):
@@ -98,8 +75,12 @@ def run_engine(
     regime_df = None
     if include_breakout:
         print("Loading NIFTY regime + relative strength...")
-        regime_df = fetch_nifty_regime(days=days)
-        print("Loaded NIFTY regime + relative strength successfully")
+        try:
+            regime_df = fetch_nifty_regime(days=days)
+            print("Loaded NIFTY regime + relative strength successfully")
+        except Exception as e:
+            print(f"Warning: Could not load regime data: {e}")
+            regime_df = None
 
     for idx, symbol in enumerate(symbols, start=1):
         print(f"[{idx}/{len(symbols)}] {symbol}")
@@ -131,6 +112,12 @@ def run_engine(
 
     final_df = final_df.replace([float("inf"), float("-inf")], pd.NA)
     ranked_df = ranked_df.replace([float("inf"), float("-inf")], pd.NA)
+    
+    # Convert boolean signals to integers for better serialization
+    if "signal" in final_df.columns:
+        final_df["signal"] = final_df["signal"].apply(lambda x: 1 if bool(x) else 0)
+    if "signal" in ranked_df.columns:
+        ranked_df["signal"] = ranked_df["signal"].apply(lambda x: 1 if bool(x) else 0)
 
     (OUTPUT_DIR / "signals_latest.csv").parent.mkdir(parents=True, exist_ok=True)
     final_df.to_csv(OUTPUT_DIR / "signals_latest.csv", index=False)
@@ -140,7 +127,7 @@ def run_engine(
 
 
 if __name__ == "__main__":
-    signals, ranked = run_engine()
+    signals, ranked = run_engine(TEST_SYMBOLS[:10])
 
     print("\n===== LIVE SIGNAL SUMMARY =====")
     print(f"Signals found: {len(signals)}")
